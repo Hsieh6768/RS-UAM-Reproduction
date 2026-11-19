@@ -1,0 +1,10 @@
+extends: debug_30min.yaml
+experiment:
+  name: diagnostic_cpu_budget_30min
+m4:
+  budget_clock: cpu
+  cpu_budget_seconds: 10
+  # 该附加墙钟保险阈值仅用于诊断，不能声称为论文同预算对比。
+  diagnostic_wall_safety_cap_seconds: 30
+validation:
+  schedule_validator_enabled: true

@@ -1,0 +1,13 @@
+# 未纳入第一阶段主实验；论文Cases 4–5的请求抽样规则未公开。
+# 使用前须由用户确认本配置的数据规模与样本来源，不能直接把5%数据改成236499条。
+extends: base.yaml
+experiment:
+  name: paper_large_template_NOT_READY
+  default_fleet_size: 800
+  default_variant: rs_uam
+network:
+  flight_headway_seconds: 60
+m4:
+  wall_budget_seconds: 30
+validation:
+  schedule_validator_enabled: false

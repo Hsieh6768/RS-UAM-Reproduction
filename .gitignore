@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments / local settings
+.venv/
+.env
+.idea/
+.vscode/
+
+# Raw and generated data
+/data/raw/*
+!/data/raw/.gitkeep
+
+/data/processed/*
+!/data/processed/.gitkeep
+
+/outputs/*
+!/outputs/.gitkeep
+
+/data/source_manifest.json
+
+# Input files placed temporarily at project root
+/nyc_2013_05_04_to_05_08.csv
+/*.osm
+/*.pbf
+/*.graphml
+/*.gpkg
+/*.geojson
+/*.shp
+/*.shx
+/*.dbf
+/*.prj
+
+# Local logs and temporary files
+*.log
+*.tmp
+
+# Important:
+# Do not ignore air_routes_manhattan.json
+# If the raw OSM file is JSON or another unmatched format,
+# add its exact filename here before staging.

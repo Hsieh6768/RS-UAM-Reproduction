@@ -1,0 +1,127 @@
+# 配置契约草案：P1/P7 由 Codex 实现并完成校验；当前还不能运行。
+config_schema_version: 1
+
+inputs:
+  raw_tlc_path: data/raw/nyc_2013_05_04_to_05_08.csv
+  raw_osm_path: null          # P0确认实际OSM文件路径后填入，禁止猜文件
+  air_routes_path: null       # P0审计并导入批准的旧工程固定静态航空拓扑后填入
+  processed_dir: data/processed
+
+data:
+  required_csv_columns:
+    - tpep_pickup_datetime
+    - tpep_dropoff_datetime
+    - pickup_longitude
+    - pickup_latitude
+    - dropoff_longitude
+    - dropoff_latitude
+    - passenger_count
+    - trip_distance
+  timezone: America/New_York
+  max_party_size: 4
+  min_direct_straight_distance_m: 500
+  sample_rate: 0.05
+  sample_method: date_hour_stratified_without_replacement
+  preserve_original_timestamps: true
+  randomize_seconds_within_minute: false
+  audit_historical_trip_distance_only: true
+  audit_historical_trip_duration_only: true
+  seed: 20130505
+
+network:
+  directed_roads: true
+  road_graph_component_policy: audit_then_largest_strong_if_appropriate
+  car_speed_mph: 14.9
+  evtol_speed_mph: 170
+  max_air_route_miles: 120
+  car_capacity: 4
+  evtol_capacity: 4
+  flight_headway_seconds: 180
+  flight_schedule_phase_seconds: 0
+  transfer_time_seconds: 0
+  walking_speed_mps: 1.4
+  raw_od_snap_to_nearest_road_node: true
+  require_air_topology_audit: true
+
+simulation:
+  warmup_start: "2013-05-04T22:00:00"
+  evaluation_start: "2013-05-05T00:00:00"
+  evaluation_end_exclusive: "2013-05-07T00:00:00"
+  batch_seconds: 10
+  decision_latency_model: instantaneous
+  tail_competition_until_all_evaluation_terminal: true
+  tail_requests_evaluated: false
+  finish_committed_after_tail: true
+  initial_vehicle_placement: uniform_random_usable_road_nodes
+
+requests:
+  pickup_tolerance_seconds: 420
+  dropoff_tolerance_seconds: 420
+  max_transfers: 2
+  max_service_legs: 3
+  allowed_modes: [car, evtol]
+  share_allowed: true
+  no_service_under_500m: true
+  short_internal_ground_leg: walk
+  short_walk_uses_straight_distance: true
+  short_walk_does_not_consume_service_leg: true
+
+m1:
+  method: reverse_pulse
+  top_k: 5
+  nominal_flight_only: true
+  cache_plan_per_request: true
+  maintain_true_top_k: true
+  deduplicate_identical_leg_signatures: true
+  optional_15min_filter:
+    implemented: false
+    enabled: false
+
+m3:
+  spatial_query: rtree_bounding_square
+  distance_sort: straight_line
+  candidate_limit_multiplier: 2
+  include_currently_full_vehicles: true
+  committed_type3_bypass_normal_truncation: true
+
+m4:
+  decoder: partitioned
+  objective_beta: 0.7
+  objective_fulfillment_reward: 100
+  objective_travel_time_unit: minutes
+  outer_loops_per_request: 2
+  inner_loops: 25
+  exchange_request_count: 1
+  operator_initial_score: 1.0
+  operator_reward_theta: 0.1
+  mutation_probability_psi: 0.4
+  mutation_magnitude_omega: 0.02
+  roulette_positive_floor: 1.0e-9
+  initial_temperature_per_request: 70
+  cooling_rate: 0.7
+  cool_after_each_inner_iteration: true
+  simulated_annealing: true
+  dynamic_operator_scoring: true
+  wall_budget_seconds: 10
+  budget_clock: wall
+  record_cpu_time: true
+  seed: 101
+
+m5:
+  enabled: true
+  solver: gurobi
+  grid_size_m: 1000
+  cost: grid_center_great_circle_distance
+  allow_m4_interrupt_rebalance_after_current_edge: true
+  retarget_active_rebalancing_from_m5: false
+
+validation:
+  schedule_validator_enabled: false
+  runtime_invariants_enabled: true
+  fail_fast_on_violation: true
+
+reporting:
+  console_every_batch: true
+  periodic_summary_every_batches: 60
+  emit_all_required_outputs: true
+  output_root: outputs

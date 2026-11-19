@@ -1,0 +1,14 @@
+extends: base.yaml
+experiment:
+  name: debug_real_10min
+  default_fleet_size: 50
+  default_variant: rs_uam
+  default_seed: 101
+simulation:
+  warmup_start: "2013-05-04T22:00:00"
+  evaluation_start: "2013-05-05T00:00:00"
+  evaluation_end_exclusive: "2013-05-05T00:10:00"
+validation:
+  schedule_validator_enabled: true
+m4:
+  wall_budget_seconds: 10
