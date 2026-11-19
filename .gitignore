@@ -41,6 +41,9 @@ htmlcov/
 *.log
 *.tmp
 
+# Copyrighted research paper - keep locally only
+/references/paper.pdf
+
 # Important:
 # Do not ignore air_routes_manhattan.json
 # If the raw OSM file is JSON or another unmatched format,
