@@ -44,6 +44,9 @@ htmlcov/
 # Copyrighted research paper - keep locally only
 /references/paper.pdf
 
+# Root directory large-scale raw taxi data
+/nyc_2013_05_04_to_05_08.csv
+
 # Important:
 # Do not ignore air_routes_manhattan.json
 # If the raw OSM file is JSON or another unmatched format,

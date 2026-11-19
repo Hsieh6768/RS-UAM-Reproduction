@@ -8,9 +8,16 @@
 
 在 PowerShell 中先进入用户建立的项目根目录（路径由用户自行替换）：
 ```powershell
+# 进入实际项目路径
 Set-Location 'D:\Projects\RS-UAM-Reproduction'
+
+# 激活统一的 Conda 环境
+conda activate ridesharing
+
+# 检查环境
+python -c "import sys; print(sys.executable)"
 python --version
-python -m pip install -e ".[dev]"
+conda info --envs
 ```
 依赖安装、Gurobi许可证和编译依赖由 Codex 在 P0/P7 检查并给出适用于本机的说明。不要在未确认环境前直接安装任意旧版包。
 
