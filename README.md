@@ -2,7 +2,7 @@
 
 **定位：** 复现 Li 等发表于 *Transportation Research Part C* 175 (2025), 105111 的
 *On-demand ridesharing based on dynamic scheduling in urban air mobility*。
-仓库按 P0–P7 实施。当前提供 P0 离线输入校验、归档、路网审计与请求样本准备，仿真 CLI 仍为后续阶段接口契约。
+仓库按 P0–P7 实施。P0 提供离线输入审计和正式样本，P1 提供有向路由、冻结的批次快照和事件仿真内核。正式仿真 CLI 属于后续阶段。P1 公共接口、事件优先级和验收记录见 [P1 阶段报告](docs/P1_REPORT.md)。
 
 ## 首次使用
 

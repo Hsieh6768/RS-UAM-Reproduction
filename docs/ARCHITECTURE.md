@@ -90,7 +90,7 @@ class ScheduleValidator:
     def validate(self, immutable_batch_snapshot, proposed_schedule) -> "ValidationReport": ...
 ```
 
-接口仅表示数据流方向，不是已经编写的代码。具体类型须先经P1测试冻结。
+上表描述各阶段的数据流。已实现的 P1 签名、道路节点类型、Decimal 秒、不可达异常、快照和单车提交边界见 [P1 公共接口与验收记录](P1_REPORT.md)。完整调度结果提交由后续阶段接入。
 所有M4候选操作在独立工作区进行，不修改`VehicleState`等真实对象。
 
 ## D. 仿真时间与事件次序

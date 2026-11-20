@@ -1,4 +1,6 @@
 from collections import Counter
+import json
+from pathlib import Path
 
 import networkx as nx
 import numpy as np
@@ -6,6 +8,19 @@ import pandas as pd
 from scipy.spatial import cKDTree
 
 from src.common.geo import chord_distance_m, distance_m, sphere_xyz
+
+
+def read_road_graph(path, *, parse_float=float):
+    """Read the P0 directed multigraph, preserving every serialized edge."""
+    with Path(path).open(encoding="utf-8-sig") as stream:
+        network = json.load(stream, parse_float=parse_float)
+    graph = nx.MultiDiGraph()
+    graph.add_nodes_from((node, {"position": (x, y)}) for node, x, y in network["nodes"])
+    graph.add_edges_from(
+        (a, b, {"way_id": way, "length_m": length, "time_s": time})
+        for a, b, way, length, time in network["directed_edges"]
+    )
+    return graph
 
 
 # P0 candidate profile follows the local OSMnx 2.0.7 drive filter.

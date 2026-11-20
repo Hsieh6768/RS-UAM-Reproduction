@@ -3,7 +3,6 @@ from pathlib import Path
 import json
 import sys
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 import pyogrio
@@ -16,7 +15,7 @@ from src.data.sources import archive_file, fingerprint, write_json
 from src.data.tlc import COLUMNS, COORDINATES, PICKUP, PRIMARY_REASONS, audit_tlc, stratified_sample
 from src.network.air import audit_air
 from src.network.pbf import inspect_header, read_snapshot
-from src.network.road import RoadNodeIndex, build_graph, map_requests, summarize_graph
+from src.network.road import RoadNodeIndex, build_graph, map_requests, read_road_graph, summarize_graph
 
 
 SOURCE_TYPES = {"tlc": "TLC CSV", "osm": "OSM PBF", "air_routes": "route JSON", "vertiports": "vertiport JSON"}
@@ -190,17 +189,6 @@ def prepare_network(config_path):
     return output
 
 
-def _read_graph(path):
-    network = read_json(path)
-    graph = nx.MultiDiGraph()
-    graph.add_nodes_from((node, {"position": (x, y)}) for node, x, y in network["nodes"])
-    graph.add_edges_from(
-        (a, b, {"way_id": way, "length_m": length, "time_s": time})
-        for a, b, way, length, time in network["directed_edges"]
-    )
-    return graph
-
-
 def _accounting(tlc, eligible, mapped, sampled, quotas):
     unreachable = ~mapped["road_reachable"]
     tlc["removed_by_primary_reason"]["unreachable_road_od"] = int(unreachable.sum())
@@ -243,7 +231,7 @@ def prepare_data(config_path):
     output = processed / "p0_requests"
     if output.exists():
         raise FileExistsError(f"Request artifact directory already exists: {output}")
-    graph = _read_graph(network / "roads.json")
+    graph = read_road_graph(network / "roads.json")
     boundary = shape(read_json(network / "boundary.geojson")["geometry"])
     _, components, largest = summarize_graph(graph)
     req = config["requests"]
