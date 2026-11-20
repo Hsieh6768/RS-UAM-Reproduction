@@ -1,4 +1,4 @@
-# Codex 交接清单与缺失输入
+# Codex 交接清单与本地输入
 
 ## 已包含（随 ZIP）
 
@@ -15,20 +15,19 @@
 - `codex_tasks/P0.md`–`P7.md`（P4为P4A/P4B）：分阶段任务卡。
 - `configs/*.yaml`：论文默认/10min/30min/5h/48h/CPU诊断/大型模板。
 - `references/paper.pdf`：用户提供的原论文完整PDF。
-- `src/*/__init__.py`：按模块组织的**空Python包，不是实现**。
-- `tests/*/.gitkeep`：测试目录框架。
+- `src/*/__init__.py`：按模块组织的 Python 包。P0 离线入口和模块见 `README.md`。
+- `tests/*/.gitkeep`：测试目录框架。P0 人工用例位于 `tests/unit/`。
 - `pyproject.toml`, `.gitignore`：Python项目基础与数据忽略规则。
 
-## 不包含、用户/环境需要提供
+## 当前工作区本地输入与环境
 
-1. **TLC原始CSV：** `nyc_2013_05_04_to_05_08.csv`；用户放在工作区根目录，Codex P0识别归档。
-2. **OSM原始路网：** 文件格式和文件名尚未确认；用户放根目录，Codex P0识别格式后决定解析方案。
-3. **旧工程固定航空拓扑及起降场静态文件：** 目前未包含。P0允许仅对批准的静态配置作只读查找、校验、复制；找不到应请用户补充，绝不可从图像猜。
-4. **可用Python环境与Gurobi许可证：** 用户/本机提供，P0检查现状并记录版本。
-5. **完整可运行源码与测试：** **本包是交接和规范文件**，需由Codex逐阶段实现。
+1. **TLC 原始 CSV：** `nyc_2013_05_04_to_05_08.csv`。
+2. **OSM 原始快照：** `new-york-190101.osm.pbf`。
+3. **固定航空输入：** `air_routes_manhattan.json` 与 `vertiports_manhattan.json`。四份原件保留在根目录，副本见 `data/raw/`。
+4. **运行环境：** 现有 Conda `ridesharing` / Python **3.9.25**。Gurobi 求解许可待需要求解的阶段验证。
+5. **阶段实现：** P0 提供离线预处理，调度和仿真按后续阶段推进。
 
 ## 质量保证
 
-交接清单和源文件SHA256见`handoff_manifest.json`。项目实际运行生成的
-`data/source_manifest.json`与`outputs/<run_id>/manifest.json`必须另行由Codex实现，
-不得把本交接包哈希当成用户原始数据哈希。
+历史交接包的清单见 `handoff_manifest.json`。当前数据原件与归档 SHA256 记录于
+`data/source_manifest.json`，P0 处理产物的 SHA256 记录于各自的 `manifest.json`。

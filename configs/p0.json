@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "inputs": {
+    "tlc": "nyc_2013_05_04_to_05_08.csv",
+    "osm": "new-york-190101.osm.pbf",
+    "air_routes": "air_routes_manhattan.json",
+    "vertiports": "vertiports_manhattan.json"
+  },
+  "archive_dir": "data/raw",
+  "source_manifest": "data/source_manifest.json",
+  "processed_dir": "data/processed",
+  "network": {
+    "manhattan_boundary_relation": 8398124,
+    "road_profile": "p0_osmnx_drive_unsimplified",
+    "road_component_policy": "compare_full_and_largest_strong",
+    "car_speed_mph": 14.9,
+    "evtol_speed_mph": 170,
+    "max_air_route_miles": 120
+  },
+  "requests": {
+    "timezone": "America/New_York",
+    "warmup_start": "2013-05-04T22:00:00",
+    "evaluation_start": "2013-05-05T00:00:00",
+    "evaluation_end_exclusive": "2013-05-07T00:00:00",
+    "max_party": 4,
+    "min_direct_od_m": 500,
+    "sample_rate": 0.05,
+    "sample_seed": 20130505
+  }
+}

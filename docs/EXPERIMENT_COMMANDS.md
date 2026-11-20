@@ -1,42 +1,42 @@
 # 实验命令手册 — 用户手动启动指南
 
-> **重要：** 本手册是 **P7 必须实现的 CLI 接口契约**，不是当前交接包已有的可运行程序。
-> Codex 完成实现并通过对应 Gate 前，运行这些 `python -m src.cli.main` 命令会因模块尚未实现而失败。
+> E00–E02 包含可用的 P0 离线命令和轻量测试。仿真、正式运行审计和汇总仍是 P7 必须落实的接口契约。
 > **真实数据的10/30分钟、五小时、48小时和批量消融均由用户亲自在Windows终端启动。**
 
 ## 0. 环境准备
 
-在 PowerShell 中先进入用户建立的项目根目录（路径由用户自行替换）：
+在 PyCharm Terminal（PowerShell）中进入项目根目录并激活已存在的 `ridesharing` 环境。下面所有命令均以同一个终端的环境核验成功为前提。
 ```powershell
 # 进入实际项目路径
-Set-Location 'D:\Projects\RS-UAM-Reproduction'
+Set-Location 'D:\Data\03_03_Pycharm\Projects_Pycharm\RS-UAM-Reproduction'
 
 # 激活统一的 Conda 环境
 conda activate ridesharing
 
 # 检查环境
-python -c "import sys; print(sys.executable)"
-python --version
+python -c "import sys; from pathlib import Path; print(sys.executable, sys.version); assert Path(sys.prefix).name == 'ridesharing' and sys.version_info[:3] == (3, 9, 25)"
 conda info --envs
+python -m pip check
 ```
-依赖安装、Gurobi许可证和编译依赖由 Codex 在 P0/P7 检查并给出适用于本机的说明。不要在未确认环境前直接安装任意旧版包。
+依赖变更须先报告已装版本、兼容包、命令和风险并由用户确认。P0 使用 JSON 配置，正式 YAML 配置使用已批准的 PyYAML 6.0.3。
 
-最初由用户把**OSM原始文件**和 `nyc_2013_05_04_to_05_08.csv` 放在根目录。P0 运行后才有 `data/raw/` 规范输入。航空拓扑来自批准的旧工程静态配置，不能自动合成。
+根目录已有 `new-york-190101.osm.pbf`、`nyc_2013_05_04_to_05_08.csv`、`air_routes_manhattan.json` 和用户后补的 `vertiports_manhattan.json`。归档命令保留根目录原件并复核 `data/raw/` 副本。
 
-## 1. 文件清点/预处理（轻量、Codex可以运行；大样本变换先用户确认）
+## 1. P0 离线清点和预处理
 
 **E00 — 输入核验（不修改数据）**
 ```powershell
-python -m src.cli.main validate-inputs --config configs/paper_main.yaml --dry-run
+python -m src.cli.main validate-inputs --config configs/p0.json --dry-run
 ```
-目标：输出源文件字段/格式、大小、哈希、OSM方向/路网属性、航空网络10站60边状态、缺失输入与阻塞项。
+输出源文件表头、格式、字节数、哈希、PBF 头和航空站点/有向航线核验。道路方向、图结构和连通性在 E01 输出。
 
-**E01 — 生成网络与请求样本（Codex获授权后可在P0执行；用户也可手动执行）**
+**E01 — 归档并生成路网与请求审计产物**
 ```powershell
-python -m src.cli.main prepare-network --config configs/paper_main.yaml
-python -m src.cli.main prepare-data --config configs/paper_main.yaml
+python -m src.cli.main archive-inputs --config configs/p0.json
+python -m src.cli.main prepare-network --config configs/p0.json
+python -m src.cli.main prepare-data --config configs/p0.json
 ```
-目标：固定样本和网络清洗、映射；生成可追溯 `data/processed/` 文件及哈希/过滤账本。不得默默覆盖先前输入或样本。
+依次执行，任一步非零退出时先检查错误。结果在 `data/processed/p0_network/`、`data/processed/p0_requests/`，各含 SHA256 清单。已有产物会阻止重写，如需复核可为新配置指定新的 `processed_dir`，重新执行后两步。现有正式样本由请求 manifest 的 `official_samples` 锁定，以该清单的 CSV 路径和 SHA256 为准。
 
 ## 2. 快速自动测试（Codex可以运行）
 

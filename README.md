@@ -2,19 +2,18 @@
 
 **定位：** 复现 Li 等发表于 *Transportation Research Part C* 175 (2025), 105111 的
 *On-demand ridesharing based on dynamic scheduling in urban air mobility*。
-本仓库是 **Codex 开发工作区交接包（设计/任务/配置），不是已完成的运行程序**。
-代码、CLI、测试、运行报表需要 Codex 按阶段实现；文档中出现的命令属于目标接口，当前不得承诺能直接运行。
+仓库按 P0–P7 实施。当前提供 P0 离线输入校验、归档、路网审计与请求样本准备，仿真 CLI 仍为后续阶段接口契约。
 
 ## 首次使用
 
 1. 创建或解压为 `RS-UAM-Reproduction/` 项目目录。
-2. 将 OSM 原始道路网络文件、`nyc_2013_05_04_to_05_08.csv` 和 `air_routes_manhattan.json` 放在项目根目录。三个文件由 P0 统一审计；除输入位置外，不要求用户预先整理。
+2. 本工作区根目录已包含 TLC CSV、OSM PBF、航线 JSON，及补充的站点坐标 JSON。P0 统一审计这些输入。
 3. 将仓库作为 Codex 的工作区，先阅读 `AGENTS.md`、`docs/DECISIONS.md`、`docs/PAPER_TRACEABILITY.md`。
 4. 向 Codex 发送 `codex_tasks/START_WITH_P0.md` 的内容，并仅授予 P0 开发范围。
-5. Codex 在 P0 中先盘点根目录的原始文件（**不改动字节/不覆盖/不猜格式**），再在 `data/raw/` 归档，输出来源哈希和筛选数量账本。
+5. P0 校验根目录原件并将经哈希复核的副本归档到 `data/raw/`。来源哈希见 `data/source_manifest.json`，本地审计产物见 `data/processed/`。
 6. Codex 每完成一阶段报告测试证据；用户决定是否进入下一阶段。
 7. **除轻量单元测试外，所有真实数据仿真由用户在控制台手动启动**。请参阅 `docs/EXPERIMENT_COMMANDS.md`。
-8. 本项目的唯一运行环境为现有 Conda 环境 ridesharing。所有开发、测试及仿真必须先确认使用该环境；具体命令见 docs/EXPERIMENT_COMMANDS.md。
+8. 在 PyCharm Terminal（PowerShell）激活现有 Conda 环境 `ridesharing`，确认解释器为 Python **3.9.25**。环境核对和命令见 `docs/EXPERIMENT_COMMANDS.md`。
 
 ## 仓库导航
 
@@ -30,7 +29,7 @@
 | `docs/RUN_OUTPUTS.md` | 控制台输出、结果文件、审计与性能统计格式 |
 | `docs/OPEN_ITEMS.md` | 缺失数据与论文歧义的处理规则 |
 | `codex_tasks/P0.md`–`P7.md` | 每阶段 Codex 任务与停止条件 |
-| `configs/*.yaml` | 待实现的配置合同；不能代替代码中的验证 |
+| `configs/p0.json`、`configs/*.yaml` | P0 审计配置与未来仿真配置契约 |
 | `references/paper.pdf` | 用户提供的原始论文，供 Codex 精确核对 |
 | `src/` | 只存新写的源码，按 M1–M5 等子目录组织 |
 | `tests/` | 独立对照、单元、集成、回归及性能测试 |
@@ -47,13 +46,12 @@
 
 用户已将以下文件放置于项目根目录：
 
-- OSM 原始道路网络文件（具体名称与格式由 P0 核验）。
+- `new-york-190101.osm.pbf`：OSM PBF 原始快照，含节点、道路 way 和关系，Manhattan 路网从快照中派生。
 - `nyc_2013_05_04_to_05_08.csv`：2013 年 TLC 出租车记录。
-- `air_routes_manhattan.json`：拟复用的固定航空航线配置。
+- `air_routes_manhattan.json`：用户批准的固定有向航线。
+- `vertiports_manhattan.json`：用户补充的固定起降场坐标。
 
-上述文件均尚未完成 P0 审计，不代表其格式、地理范围、节点映射及航线数量已经验证通过。
-
-Codex 在 P0 中应当优先检查根目录现有文件，记录原始文件 SHA256、结构及来源，再按规范整理至 `data/raw/`。严禁修改原始文件内容、自动补齐反向航线或自行生成替代拓扑。
+根目录原件和归档字节一致。正式输入是完整 Manhattan 有向图、固定航空拓扑与通过有向 OD 可达性筛选的固定样本。图和样本的身份、数量及 SHA256 见 `data/processed/p0_requests/manifest.json`。
 
 大型原始数据和生成结果不提交 Git。已确认的静态航空拓扑建议纳入版本管理。
 

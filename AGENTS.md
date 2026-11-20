@@ -24,13 +24,13 @@
 
 ## 1.1 Python / Conda 环境要求
 
-本项目统一使用用户已创建的 Conda 虚拟环境 `ridesharing`。
+本项目统一使用用户已创建的 Conda 虚拟环境 `ridesharing`，Python **3.9.25**。
 
 1. P0–P7 全部开发、数据预处理、单元测试、性能测试及仿真必须使用该环境。
 2. 不得使用 Conda `base`、系统 Python、PyCharm 其他项目的解释器或自行创建替代虚拟环境。
 3. 每个阶段开始时，应核实当前 Python 解释器路径、Python 版本及必要依赖。
-4. 如需安装或升级依赖，应先检查 `ridesharing` 环境中已有的软件包及其版本，确认兼容性，并在报告中说明拟执行的变更。
-5. 不得为满足依赖而擅自大规模升级、降级或重建环境。
+4. 如需改动依赖，先检查 `ridesharing` 已安装的版本，说明兼容性、命令和风险，等待用户确认后才可安装、卸载、升级或降级。
+5. 不得自行创建或重建环境，禁止将 `pip install -e ".[dev]"` 作为自动前置步骤。
 6. 项目的依赖声明应与实际使用环境保持一致；必要时提供环境配置或依赖清单。
 7. 所有测试报告必须注明使用的 Python 解释器及环境名称。
 8. 正式实验由用户在已激活 `ridesharing` 的 PyCharm Terminal 中手动启动。
@@ -43,7 +43,7 @@
 - 新代码在 `src/`，按 `src/m1/`, `src/m2/`, `src/m3/`, `src/m4/`, `src/m5/`,
   `src/network/`, `src/simulation/`, `src/data/`, `src/evaluation/`, `src/cli/`, `src/common/` 分开组织。
 - `src` 是 Python 包根目录（有 `src/__init__.py`），CLI 约定 `python -m src.cli.main`。不得自行把源码改回 `uam/`。
-- 原始 TLC 与 OSM 文件由用户放在工作区根目录。P0 先完成只读清点、哈希与备份/归档策略；确认目标路径和无同名冲突后整理到 `data/raw/`。
+- 用户已在根目录提供原始 TLC CSV、`new-york-190101.osm.pbf` 及批准的 `air_routes_manhattan.json`、`vertiports_manhattan.json`。P0 先只读清点并计算哈希，确认目标路径无冲突后复制到 `data/raw/` 并复核，保留根目录原件。
 - `data/raw/` 只读、禁止清理覆盖；生成数据写入 `data/processed/` 并附配置与来源哈希。
 - 不根据论文 Table 5 的服务率修改数据筛选或参数以凑数。
 - 静态航线配置必须忠实保留方向，不自动建立反向航线。起降场/边数据缺失时不得自行根据 Fig.7 猜测。

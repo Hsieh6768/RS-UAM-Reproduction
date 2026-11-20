@@ -1,11 +1,14 @@
-# 配置契约草案：P1/P7 由 Codex 实现并完成校验；当前还不能运行。
+# 仿真配置契约。P0 离线审计入口使用 configs/p0.json。
 config_schema_version: 1
 
 inputs:
   raw_tlc_path: data/raw/nyc_2013_05_04_to_05_08.csv
-  raw_osm_path: null          # P0确认实际OSM文件路径后填入，禁止猜文件
-  air_routes_path: null       # P0审计并导入批准的旧工程固定静态航空拓扑后填入
+  raw_osm_path: data/raw/new-york-190101.osm.pbf
+  air_routes_path: data/raw/air_routes_manhattan.json
+  vertiports_path: data/raw/vertiports_manhattan.json
   processed_dir: data/processed
+  prepared_road_graph_path: data/processed/p0_network/roads.json
+  prepared_request_manifest_path: data/processed/p0_requests/manifest.json
 
 data:
   required_csv_columns:
@@ -30,7 +33,8 @@ data:
 
 network:
   directed_roads: true
-  road_graph_component_policy: audit_then_largest_strong_if_appropriate
+  road_graph_component_policy: full_directed_reachable_od
+  manhattan_boundary_relation: 8398124
   car_speed_mph: 14.9
   evtol_speed_mph: 170
   max_air_route_miles: 120

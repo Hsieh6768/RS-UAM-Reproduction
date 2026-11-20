@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rs-uam-reproduction"
 version = "0.0.0"
-description = "Reproduction scaffold for On-demand ridesharing based on dynamic scheduling in urban air mobility"
+description = "Independent reproduction of On-demand ridesharing based on dynamic scheduling in urban air mobility"
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.26",
@@ -13,9 +13,10 @@ dependencies = [
     "networkx>=3.2",
     "PyYAML>=6",
     "scipy>=1.11",
+    "shapely>=2.0",
+    "pyogrio>=0.11",
     "rtree>=1.2",
     "gurobipy>=11",
-    # OSMnx / pyproj usage and actual versions must be decided after P0 OSM format audit.
 ]
 
 [project.optional-dependencies]
