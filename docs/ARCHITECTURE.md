@@ -61,7 +61,7 @@ class RoadRouter:
     def shortest_path_edges(self, source_node: str, target_node: str) -> list: ...
 
 class M1Planner:
-    def generate(self, request, immutable_network) -> "PlanBundle": ...
+    def generate(self, request, immutable_network) -> tuple[Plan, ...]: ...
 
 class M3Searcher:
     def search(self, batch_snapshot, plans_by_request) -> "SparseCandidates": ...
@@ -92,6 +92,8 @@ class ScheduleValidator:
 
 上表描述各阶段的数据流。已实现的 P1 签名、道路节点类型、Decimal 秒、不可达异常、快照和单车提交边界见 [P1 公共接口与验收记录](P1_REPORT.md)。完整调度结果提交由后续阶段接入。
 所有M4候选操作在独立工作区进行，不修改`VehicleState`等真实对象。
+
+M1 的结果按名义成本与结构签名排序。每个 Plan 至少含一个 Car 或 Flight，辅助步行按链中顺序消耗时间。Leg 的 LP 与 LD 分别用于接客和送达，允许 LP>LD；下游使用各自的原始上限检查实际事件。详见 [P2 接口与验收报告](P2_REPORT.md)。
 
 ## D. 仿真时间与事件次序
 

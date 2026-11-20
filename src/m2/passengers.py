@@ -92,8 +92,11 @@ class Leg:
                 object.__setattr__(self, name, seconds(value))
         if self.nominal_s is None or (self.origin != self.destination and self.nominal_s == 0):
             raise ValueError("Travel between distinct locations requires positive nominal time")
-        bounds = [t for t in (self.earliest_pickup, self.latest_pickup, self.latest_dropoff) if t is not None]
-        if bounds != sorted(bounds):
+        # D002: LP bounds pickup and LD bounds dropoff, independently.
+        if self.earliest_pickup is not None and any(
+            self.earliest_pickup > limit
+            for limit in (self.latest_pickup, self.latest_dropoff) if limit is not None
+        ):
             raise ValueError("Inconsistent leg time window")
         if self.route_id is not None:
             identifier(self.route_id)
@@ -151,6 +154,29 @@ class Plan:
     @property
     def nominal_s(self):
         return reduce(exact_add, (step.nominal_s for step in self.legs), Decimal(0))
+
+    @property
+    def formal_leg_count(self):
+        return sum(isinstance(step, Leg) for step in self.legs)
+
+    @property
+    def transfer_count(self):
+        return self.formal_leg_count - 1
+
+    @property
+    def service_mode(self):
+        if any(isinstance(step, Leg) and step.mode == LegMode.FLIGHT for step in self.legs):
+            return "RS-UAM"
+        return "SHRS" if self.formal_leg_count == 1 else "MHRS"
+
+    def step_neighbors(self, leg_id):
+        """Immediate predecessor/successor IDs in the chain, including walks."""
+        for i, step in enumerate(self.legs):
+            if step.leg_id == leg_id:
+                previous = self.legs[i - 1].leg_id if i else None
+                following = self.legs[i + 1].leg_id if i + 1 < len(self.legs) else None
+                return previous, following
+        raise KeyError(leg_id)
 
 
 @dataclass(frozen=True)

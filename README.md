@@ -4,6 +4,8 @@
 *On-demand ridesharing based on dynamic scheduling in urban air mobility*。
 仓库按 P0–P7 实施。P0 提供离线输入审计和正式样本，P1 提供有向路由、冻结的批次快照和事件仿真内核。正式仿真 CLI 属于后续阶段。P1 公共接口、事件优先级和验收记录见 [P1 阶段报告](docs/P1_REPORT.md)。
 
+P2 的静态 M1 规划入口为 `M1Planner.generate(request, immutable_network)`。P2 Gate **PASS**。方案资格、D002 时间窗、独立穷举和限量正式请求规划结果见 [P2 阶段报告](docs/P2_REPORT.md)。
+
 ## 首次使用
 
 1. 创建或解压为 `RS-UAM-Reproduction/` 项目目录。
