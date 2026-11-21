@@ -83,6 +83,20 @@ class VehicleState:
     onboard: Tuple[str, ...]
     occupancy: int
     position: Tuple[float, float]
+    rebalance_target: Optional[Hashable] = None
+
+    @property
+    def parked_without_program(self):
+        """Physical readiness only. Check pending passenger commitments separately."""
+        return (self.node is not None and self.motion is None and not self.remaining_edges
+                and not self.actions and not self.onboard and self.occupancy == 0
+                and self.rebalance_target is None)
+
+
+def committed_car_ids(tasks):
+    """Pending car tasks bind vehicles even before the appointments are installed."""
+    return {t.resource_id for t in tasks
+            if t.kind in ("PICKUP", "DROPOFF") and t.status != "COMPLETED"}
 
 
 @dataclass(frozen=True)

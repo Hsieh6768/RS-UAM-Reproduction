@@ -17,7 +17,7 @@ from src.network.routing import RoadEdge, RoadRouter
 from src.simulation.connections import check_connections
 from src.simulation.events import (
     PRIORITY, Action, BatchSnapshot, CandidateRoute, EventKind, Motion,
-    SimulationEvent, VehicleState,
+    SimulationEvent, VehicleState, committed_car_ids,
 )
 from src.simulation.service import ServiceState
 
@@ -30,6 +30,7 @@ class _Vehicle:
     tail: Deque[RoadEdge] = field(default_factory=deque)
     version: int = 0
     actions: Tuple[Action, ...] = ()
+    rebalance_target: Optional[Hashable] = None
 
 
 def _record(value):
@@ -178,14 +179,15 @@ class Simulator:
 
     def _snapshot(self):
         service = self._service
-        vehicles = {
-            vid: VehicleState(vid, v.capacity, v.node, v.motion, tuple(v.tail), v.actions,
-                              v.version, service.onboard(vid), service.occupancy(vid), self.position(vid))
-            for vid, v in self._vehicles.items()
-        }
+        vehicles = {vid: self._vehicle_state(vid, v) for vid, v in self._vehicles.items()}
         return BatchSnapshot(self.now, self._version, self._router.version, MappingProxyType(vehicles),
                              MappingProxyType(dict(service.requests)), MappingProxyType(dict(service.flights)),
                              MappingProxyType(dict(service.tasks)))
+
+    def _vehicle_state(self, vid, vehicle):
+        return VehicleState(vid, vehicle.capacity, vehicle.node, vehicle.motion, tuple(vehicle.tail),
+                            vehicle.actions, vehicle.version, self._service.onboard(vid),
+                            self._service.occupancy(vid), self.position(vid), vehicle.rebalance_target)
 
     def _validate_actions(self, candidate, vehicle, node, ready):
         """Check this vehicle's physical stops before switching the live version.
@@ -238,12 +240,25 @@ class Simulator:
 
     def commit_route(self, candidate: CandidateRoute):
         """Atomically replace one remaining road program on a current snapshot."""
+        self._commit_route(candidate, rebalance=False)
+
+    def commit_rebalance(self, candidate: CandidateRoute):
+        """Install one verified empty-vehicle move. Joint publication is a separate operation."""
+        self._commit_route(candidate, rebalance=True)
+
+    def _commit_route(self, candidate, *, rebalance):
         self._begin_decision()
         if candidate.snapshot_version != self._version:
             raise ValueError("stale snapshot version")
         if candidate.vehicle_id not in self._vehicles:
             raise ValueError(f"Unknown vehicle {candidate.vehicle_id!r}")
         v = self._vehicles[candidate.vehicle_id]
+        if rebalance:
+            if (not self._vehicle_state(candidate.vehicle_id, v).parked_without_program
+                    or candidate.vehicle_id in committed_car_ids(self._service.tasks.values())):
+                raise ValueError(f"Vehicle {candidate.vehicle_id!r} is not idle")
+            if candidate.actions or candidate.destination is None or candidate.destination == v.node:
+                raise ValueError("Rebalancing requires a distinct road destination and no actions")
         node = v.motion.edge.target if v.motion else v.node
         ready = v.motion.exact_end if v.motion else Decimal(self.now)
         edges = ()
@@ -255,6 +270,7 @@ class Simulator:
         v.tail = deque(edges)
         v.version += 1
         v.actions = actions
+        v.rebalance_target = candidate.destination if rebalance else None
         for action in actions:
             self._schedule(action.time, action.kind, action.target,
                            vehicle_id=candidate.vehicle_id, version=v.version)
@@ -282,6 +298,8 @@ class Simulator:
                 or event_second(motion.exact_end) != event.time):
             raise ValueError("Road completion does not match active motion")
         v.node, v.motion = motion.edge.target, None
+        if not v.tail:
+            v.rebalance_target = None
         self._start_edge(event.object_id, motion.exact_end)
 
     def _release(self, event):
