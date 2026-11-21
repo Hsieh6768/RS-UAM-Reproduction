@@ -41,3 +41,4 @@ def check_connections(service, request_id, appointments, now):
                 raise ServiceConflict(f"Dropoff precedes road travel bound for {drop_id}")
             first = False
         check_dropoff(req, step, ready)
+    return ready

@@ -1,11 +1,13 @@
 """D004 discrete-event clock, physical road motion and versioned vehicle programs."""
 from collections import deque
-from dataclasses import dataclass, field, fields, is_dataclass
+from copy import copy
+from dataclasses import dataclass, field, fields, is_dataclass, replace
 from decimal import Decimal
 from fractions import Fraction
 from heapq import heappop, heappush
 from itertools import count
 from pathlib import Path
+from sys import getsizeof
 from types import MappingProxyType
 from typing import Deque, Hashable, Mapping, Optional, Tuple
 from uuid import uuid4
@@ -39,7 +41,7 @@ def _record(value):
         return {f.name: _record(getattr(value, f.name)) for f in fields(value)}
     if isinstance(value, Mapping):
         return {str(k): _record(v) for k, v in value.items()}
-    if isinstance(value, (tuple, list, frozenset)):
+    if isinstance(value, (tuple, list, frozenset, deque)):
         return [_record(v) for v in value]
     if isinstance(value, Decimal):
         return str(value)
@@ -57,6 +59,9 @@ class Simulator:
         if not self._batch_seconds:
             raise ValueError("batch_seconds must be positive")
         self._version = 0
+        self._world_id = uuid4().hex
+        self._staged_from = None
+        self.search_state = None
         self._vehicles = {}
         self._service = ServiceState()
         self._arrivals = {}
@@ -83,6 +88,61 @@ class Simulator:
     def history(self):
         return tuple(self._history)
 
+    def drain_history(self):
+        events = tuple(self._history)
+        self._history.clear()
+        return events
+
+    def storage_metrics(self):
+        """Shallow container sizes for the live world; event objects are immutable records."""
+        return dict(request_table_bytes=getsizeof(self._service._requests),
+                    task_table_bytes=getsizeof(self._service._tasks),
+                    flight_table_bytes=getsizeof(self._service._flights),
+                    event_queue_bytes=getsizeof(self._queue), future_event_count=len(self._queue),
+                    event_buffer_bytes=getsizeof(self._history) + sum(map(getsizeof, self._history)))
+
+    def _check_snapshot(self, snapshot):
+        self._running()
+        if (snapshot.world_id != self._world_id or snapshot.time != self.now
+                or snapshot.version != self._version or snapshot.graph_version != self.router.version
+                or (self.now - self._origin) % self._batch_seconds):
+            raise ValueError("stale or foreign batch snapshot")
+
+    def stage(self, snapshot):
+        """Fork the single-writer world; immutable records/road and pure router caches are shared."""
+        self._check_snapshot(snapshot)
+        stage = copy(self)
+        stage._staged_from = snapshot
+        stage._vehicles = {vid: replace(v, tail=deque(v.tail)) for vid, v in self._vehicles.items()}
+        stage._service = self._service.fork()
+        stage._arrivals = self._arrivals.copy()
+        stage._queue = self._queue.copy()
+        stage._seq = copy(self._seq)
+        stage._history = self._history.copy()
+        return stage
+
+    def publish(self, snapshot, stage):
+        """Drain caused same-tick events privately, then publish all tables with one pointer swap."""
+        self._check_snapshot(snapshot)
+        if stage._staged_from is not snapshot or stage.now != self.now or stage is self:
+            raise ValueError("Invalid staged simulation for publication")
+        stage.advance_to(self.now)
+        stage._version = self._version + 1
+        stage._staged_from = None
+        self.__dict__ = stage.__dict__
+        # The staged handle is consumed; callers cannot mutate the published tables through it.
+        stage.__dict__ = {"_status": "FAILED", "_staged_from": None}
+
+    def install_rebalance_edges(self, vehicle_id, destination, edges):
+        """Only a staged, jointly validated M5 plan may use the precomputed edge sequence."""
+        if self._staged_from is None:
+            raise ValueError("Rebalance installation requires staging")
+        vehicle = self._vehicles[vehicle_id]
+        vehicle.tail = deque(edges)
+        vehicle.version += 1
+        vehicle.rebalance_target = destination
+        self._start_edge(vehicle_id, Decimal(self.now))
+
     def _running(self):
         if self.status == "FAILED":
             raise RuntimeError("Simulation is FAILED")
@@ -92,10 +152,11 @@ class Simulator:
         if require_tick(tick) < self.now:
             raise ValueError(f"Time {tick} precedes simulator clock {self.now}")
 
-    def _schedule(self, tick, kind, object_id, *, vehicle_id=None, version=None, edge=None, physical_time=None):
+    def _schedule(self, tick, kind, object_id, *, vehicle_id=None, version=None, edge=None,
+                  physical_time=None, road_purpose=None):
         self._future(tick)
         event = SimulationEvent(tick, EventKind(kind), next(self._seq), object_id,
-                                vehicle_id, version, edge, physical_time)
+                                vehicle_id, version, edge, physical_time, road_purpose)
         heappush(self._queue, (tick, event.priority, event.seq, event))
 
     def add_vehicle(self, vehicle_id, node, capacity=4):
@@ -117,6 +178,7 @@ class Simulator:
             raise ValueError("Request release requires a deferred loader")
         self._arrivals[request_id] = load_request
         self._schedule(at, "ARRIVAL", request_id)
+        self._version += 1
 
     def add_flight(self, flight):
         self._future(flight.depart_at)
@@ -130,6 +192,9 @@ class Simulator:
     def accept(self, request_id, plan, bindings):
         """Bind one released request, its plan and all resources in one operation."""
         self._begin_decision()
+        self._accept(request_id, plan, bindings)
+
+    def _accept(self, request_id, plan, bindings):
         if isinstance(bindings, (str, bytes)):
             raise ValueError("Expected one binding per plan step")
         bindings = tuple(bindings)
@@ -177,19 +242,33 @@ class Simulator:
         self._begin_decision()
         return self._snapshot()
 
+    def failure_snapshot(self):
+        """Inspect without advancing time, even if a malformed task reference caused the error."""
+        try:
+            return self._snapshot()
+        except (KeyError, IndexError, ValueError, TypeError) as exc:
+            return dict(time=self.now, version=self._version, graph_version=self.router.version,
+                        snapshot_error=str(exc), requests=self._service.requests, tasks=self._service.tasks,
+                        flights=self._service.flights, vehicles=_record(self._vehicles), search_state=self.search_state)
+
     def _snapshot(self):
         service = self._service
         vehicles = {vid: self._vehicle_state(vid, v) for vid, v in self._vehicles.items()}
+        remaining = None
+        if self.search_state is not None:
+            tasks = service.tasks
+            remaining = tuple(tasks[tid].request_id for tid in self.search_state.remaining_task_ids
+                              if tasks[tid].status == "PENDING")
         return BatchSnapshot(self.now, self._version, self._router.version, MappingProxyType(vehicles),
                              MappingProxyType(dict(service.requests)), MappingProxyType(dict(service.flights)),
-                             MappingProxyType(dict(service.tasks)))
+                             MappingProxyType(dict(service.tasks)), self._world_id, remaining)
 
     def _vehicle_state(self, vid, vehicle):
         return VehicleState(vid, vehicle.capacity, vehicle.node, vehicle.motion, tuple(vehicle.tail),
                             vehicle.actions, vehicle.version, self._service.onboard(vid),
                             self._service.occupancy(vid), self.position(vid), vehicle.rebalance_target)
 
-    def _validate_actions(self, candidate, vehicle, node, ready):
+    def _validate_actions(self, candidate, vehicle, node, ready, *, joint=False):
         """Check this vehicle's physical stops before switching the live version.
 
         Joint passenger connections and global scheduling are outside this primitive.
@@ -230,7 +309,7 @@ class Simulator:
         locked = {a.target for a in vehicle.actions if a.kind != "DRIVE"}
         if not locked.issubset(seen):
             raise ValueError("Replacement omits a scheduled committed task")
-        if seen:
+        if seen and not joint:
             known = {a.target: a.time for vid, v in self._vehicles.items()
                      for a in (actions if vid == candidate.vehicle_id else v.actions)
                      if a.kind != "DRIVE"}
@@ -259,6 +338,10 @@ class Simulator:
                 raise ValueError(f"Vehicle {candidate.vehicle_id!r} is not idle")
             if candidate.actions or candidate.destination is None or candidate.destination == v.node:
                 raise ValueError("Rebalancing requires a distinct road destination and no actions")
+        self._install_route(candidate, v, rebalance=rebalance)
+        self._version += 1
+
+    def _install_route(self, candidate, v, *, rebalance=False, joint=False):
         node = v.motion.edge.target if v.motion else v.node
         ready = v.motion.exact_end if v.motion else Decimal(self.now)
         edges = ()
@@ -266,7 +349,7 @@ class Simulator:
             edges = self._router.shortest_path_edges(node, candidate.destination)
             ready = exact_add(ready, self._router.shortest_time_s(node, candidate.destination))
             node = candidate.destination
-        actions = self._validate_actions(candidate, v, node, ready)
+        actions = self._validate_actions(candidate, v, node, ready, joint=joint)
         v.tail = deque(edges)
         v.version += 1
         v.actions = actions
@@ -276,7 +359,6 @@ class Simulator:
                            vehicle_id=candidate.vehicle_id, version=v.version)
         if v.motion is None:
             self._start_edge(candidate.vehicle_id, Decimal(self.now))
-        self._version += 1
 
     def _start_edge(self, vehicle_id, start):
         vehicle = self._vehicles[vehicle_id]
@@ -289,7 +371,11 @@ class Simulator:
         vehicle.motion = Motion(edge, start, end)
         vehicle.node = None
         # Physical completions deliberately carry no replaceable program version.
-        self._schedule(event_second(end), "EDGE_END", vehicle_id, edge=edge, physical_time=end)
+        purpose = ("LOADED" if self._service.occupancy(vehicle_id) else
+                   "REBALANCE" if vehicle.rebalance_target is not None else
+                   "PICKUP" if any(a.kind == "PICKUP" for a in vehicle.actions) else "EMPTY")
+        self._schedule(event_second(end), "EDGE_END", vehicle_id, edge=edge,
+                       physical_time=end, road_purpose=purpose)
 
     def _edge_end(self, event):
         v = self._vehicles[event.object_id]
@@ -353,7 +439,7 @@ class Simulator:
                 self._failure_dir.mkdir(parents=True, exist_ok=True)
                 self.failure_path = self._failure_dir / f"failure-{uuid4().hex}.json"
                 write_json(self.failure_path, {"status": self.status, "cause": str(exc),
-                           "event": _record(event), "snapshot": _record(self._snapshot()),
+                           "event": _record(event), "snapshot": _record(self.failure_snapshot()),
                            "history": _record(self._history)})
                 raise
         if start != simulation_time_s:

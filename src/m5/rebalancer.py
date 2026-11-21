@@ -66,6 +66,7 @@ class RebalancePlan:
     cpu_s: float
     placement_wall_s: float
     placement_cpu_s: float
+    world_id: Optional[str] = None
 
     @property
     def supply_total(self):
@@ -171,7 +172,7 @@ class M5Rebalancer:
                              MappingProxyType(demand), MappingProxyType(dict(sorted(covered.items()))),
                              MappingProxyType(uncovered), transport, moves, local, remaining, route_failure,
                              perf_counter() - started_wall, process_time() - started_cpu,
-                             placement_wall, placement_cpu)
+                             placement_wall, placement_cpu, snap.world_id)
 
     def _counts(self, snapshot, request_ids, vehicle_ids):
         committed = committed_car_ids(snapshot.tasks.values())

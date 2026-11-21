@@ -1,6 +1,6 @@
 """PAPER Algorithm 4 with D004–D007 rolling commitments and D014 timing."""
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from time import perf_counter, process_time
 from typing import Mapping, Optional
@@ -149,6 +149,9 @@ class SearchResult:
     timing: BudgetTiming
     config: M4Config
     validation_wall_s: float
+    source_snapshot: object = field(default=None, compare=False, repr=False)
+    plan_catalog: Mapping = field(default_factory=dict, compare=False, repr=False)
+    candidate_resources: Mapping = field(default_factory=dict, compare=False, repr=False)
 
 
 class M4HALNS:
@@ -173,6 +176,8 @@ class M4HALNS:
             except SnapshotError as exc:
                 exc.failure_path = record_failure(failure_dir, snapshot, exc)
                 raise
+        elif remaining_sequence is None:
+            remaining_sequence = snapshot.remaining_sequence
         # S0 is mandatory: charge its actual duration, even if proving S0 alone
         # overruns the deadline. There is no previously scored fallback in this batch.
         try:
@@ -271,4 +276,5 @@ class M4HALNS:
             start = wall_clock()
             ScheduleValidator(full, failure_dir=failure_dir).validate(best)
             validation_wall_s = wall_clock() - start
-        return SearchResult(best, current, safe, initial_scores, state, stats, timing, cfg, validation_wall_s)
+        return SearchResult(best, current, safe, initial_scores, state, stats, timing, cfg, validation_wall_s,
+                            snapshot, full.catalog, full.rows)

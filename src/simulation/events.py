@@ -1,5 +1,5 @@
 """P1 execution records and immutable planning inputs (D004)."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from typing import Hashable, Mapping, Optional, Tuple
@@ -39,6 +39,7 @@ class SimulationEvent:
     version: Optional[int] = None
     edge: Optional[RoadEdge] = None
     physical_time: Optional[Decimal] = None
+    road_purpose: Optional[str] = None
 
     @property
     def priority(self):
@@ -108,6 +109,8 @@ class BatchSnapshot:
     requests: Mapping[str, Request]
     flights: Mapping[str, FlightInstance]
     tasks: Mapping[str, Task]
+    world_id: Optional[str] = field(default=None, compare=False, repr=False)
+    remaining_sequence: Optional[Tuple[str, ...]] = None
 
     def remaining_route(self, vehicle_id):
         """Current committed destination and unexecuted appointments for one vehicle."""

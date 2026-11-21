@@ -2,7 +2,7 @@
 
 **定位：** 复现 Li 等发表于 *Transportation Research Part C* 175 (2025), 105111 的
 *On-demand ridesharing based on dynamic scheduling in urban air mobility*。
-仓库按 P0–P7 实施。P0 提供离线输入审计和正式样本，P1 提供有向路由、冻结的批次快照和事件仿真内核。正式仿真 CLI 属于后续阶段。P1 公共接口、事件优先级和验收记录见 [P1 阶段报告](docs/P1_REPORT.md)。
+仓库按 P0–P7 实施。P0 提供离线输入审计和正式样本，P1 提供有向路由、冻结的批次快照和事件仿真内核。P6 已接通 M1–M5、整批提交及单次实验 CLI，真实短窗待用户手动验收。运行方法见 [实验命令手册](docs/EXPERIMENT_COMMANDS.md)，人工验证证据见 [P6 阶段报告](docs/P6_REPORT.md)。P1 公共接口、事件优先级和验收记录见 [P1 阶段报告](docs/P1_REPORT.md)。
 
 P2 的静态 M1 规划入口为 `M1Planner.generate(request, immutable_network)`。P2 Gate **PASS**。方案资格、D002 时间窗、独立穷举和限量正式请求规划结果见 [P2 阶段报告](docs/P2_REPORT.md)。
 

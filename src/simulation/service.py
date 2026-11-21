@@ -78,6 +78,15 @@ class ServiceState:
     def occupancy(self, vehicle_id):
         return sum(self._requests[rid].party_size for rid in self.onboard(vehicle_id))
 
+    def fork(self):
+        """Records and membership tuples are immutable. Isolate their owning tables."""
+        other = ServiceState()
+        other._requests = self._requests.copy()
+        other._tasks = self._tasks.copy()
+        other._flights = self._flights.copy()
+        other._onboard = self._onboard.copy()
+        return other
+
     def add_request(self, request: Request):
         if request.request_id in self._requests:
             raise ServiceConflict(f"Duplicate request {request.request_id}")

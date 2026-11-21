@@ -195,7 +195,9 @@ def prepare_baseline(snapshot, sparse, road, remaining_sequence=None):
         node, ready = car.node, snapshot.time
         if car.motion:
             m = car.motion
-            require(node is None and m.exact_start <= ready < m.exact_end and
+            require(ready < m.exact_end, f"Invalid active edge for {vid}: overdue road edge "
+                    f"{m.edge.identity} due at {m.exact_end}, snapshot at {ready}")
+            require(node is None and m.exact_start <= ready and
                     exact_add(m.exact_start, m.edge.time_s) == m.exact_end and
                     m.edge in road.parallel_edges(m.edge.source, m.edge.target), f"Invalid active edge for {vid}")
             node, ready = m.edge.target, m.exact_end
