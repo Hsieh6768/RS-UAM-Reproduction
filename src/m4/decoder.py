@@ -12,9 +12,14 @@ from .encoding import Choice, Encoding, EncodingError, expand, frozen, pending_f
 from .result import Conflict, DecodedSchedule, InitialSolutions, TimedTask, TripTime, objective
 
 
+def _unchecked():
+    """Default checkpoint for an unbudgeted reference decode."""
+
+
 class _Infeasible(Exception):
     def __init__(self, rid, reason, detail):
         self.conflict = Conflict(rid, reason, str(detail))
+        self.task_id = None  # None identifies failures during initial prefix replay.
         super().__init__(f"{rid}: {reason}: {detail}")
 
 
@@ -90,6 +95,7 @@ class FullDecoder:
         if not (0 <= beta <= 1 and isfinite(delta) and delta > 0):
             raise ValueError("Invalid objective weights")
         self.road, self.snapshot = road, snapshot
+        self.failure_dir = failure_dir
         self.beta, self.delta = beta, delta
         self.batch_key = object()
         self.options = frozen({rid: tuple(plans) for rid, plans in plans_by_request.items()})
@@ -124,12 +130,14 @@ class FullDecoder:
         except KeyError as exc:
             raise EncodingError(f"Unknown M1 plan for {rid}: {choice.plan_id}") from exc
 
-    def _resolve(self, enc):
+    def _resolve(self, enc, checkpoint=_unchecked):
         for rid, locked in self.fixed_choices.items():
+            checkpoint()
             if enc.choices.get(rid) != locked:
                 raise _Infeasible(rid, "changed_commitment", locked)
         chains, plans = {}, {}
         for rid, choice in sorted(enc.choices.items()):
+            checkpoint()
             req = self.snapshot.requests.get(rid)
             if req is None or req.status in ("COMPLETED", "EXPIRED_UNSERVED"):
                 raise EncodingError(f"Request outside solve set: {rid}")
@@ -150,20 +158,24 @@ class FullDecoder:
         pending = {rid: pending_formal(chain) for rid, chain in chains.items()}
         return plans, chains, expand(enc.sequence, pending)
 
-    def decode(self, encoding: Encoding, *, preserve_appointments=False) -> DecodedSchedule:
-        """Evaluate a trial, or replay this batch's safe encoding at its original appointments."""
+    def _check_input(self, encoding, preserve_appointments):
         if not isinstance(encoding, Encoding):
             raise EncodingError("Expected an immutable two-layer Encoding")
         if preserve_appointments and encoding != self.safe_baseline.encoding:
             raise EncodingError("Original appointment replay requires the safe baseline encoding")
-        return self._decode(encoding, preserve_appointments)
 
-    def _decode(self, encoding, preserve_appointments):
+    def decode(self, encoding: Encoding, *, preserve_appointments=False, checkpoint=None) -> DecodedSchedule:
+        """Evaluate a trial, or replay this batch's safe encoding at its original appointments."""
+        self._check_input(encoding, preserve_appointments)
+        return self._decode(encoding, preserve_appointments, checkpoint or _unchecked)
+
+    def _decode(self, encoding, preserve_appointments, checkpoint=_unchecked):
         wall, cpu = perf_counter(), process_time()
         repairs = []
         while True:
             try:
-                result = self._attempt(encoding, preserve_appointments)
+                checkpoint()
+                result = self._attempt(encoding, preserve_appointments, checkpoint)
                 failure = None
                 break
             except _Infeasible as exc:
@@ -175,19 +187,34 @@ class FullDecoder:
                 repairs.append(failure)
                 encoding = encoding.without(failure.request_id)
         tasks, cars, nodes, flights, trips, ends, f1, f2, score = result
+        checkpoint()
         return DecodedSchedule(self.batch_key, self.snapshot.time, self.snapshot.version, preserve_appointments, encoding,
                                tasks, cars, nodes, flights, trips, ends, tuple(repairs), len(repairs)+1,
                                failure, f1, f2, score, perf_counter()-wall, process_time()-cpu)
 
-    def _attempt(self, enc, preserve):
+    def _attempt(self, enc, preserve, checkpoint=_unchecked):
+        plans, chains, sequence = self._resolve(enc, checkpoint)
         snap = self.snapshot
-        plans, chains, sequence = self._resolve(enc)
-        cars = {vid: _Car(v.motion.edge.target if v.motion else v.node,
-                          v.motion.exact_end if v.motion else Decimal(snap.time),
-                          set(v.onboard), v.occupancy) for vid, v in snap.vehicles.items()}
-        seats = {fid: dict(f.reservations) for fid, f in snap.flights.items()}
+        result = self._physical(plans, chains, sequence, snap.vehicles, snap.flights, preserve, checkpoint)
+        return (*result, *objective(snap.requests, result[-1], self.beta, self.delta))
+
+    def _physical(self, plans, chains, sequence, vehicle_ids, flight_ids, preserve, checkpoint):
+        """P4-A physics over one independent set of journeys and resources."""
+        snap = self.snapshot
+        cars = {}
+        for vid in vehicle_ids:
+            checkpoint()
+            v = snap.vehicles[vid]
+            cars[vid] = _Car(v.motion.edge.target if v.motion else v.node,
+                             v.motion.exact_end if v.motion else Decimal(snap.time),
+                             set(v.onboard), v.occupancy)
+        seats = {}
+        for fid in flight_ids:
+            checkpoint()
+            seats[fid] = dict(snap.flights[fid].reservations)
         journeys = {}
         for rid, plan in plans.items():
+            checkpoint()
             req = snap.requests[rid]
             start = req.accepted_at if rid in self.fixed_choices else snap.time
             journey = _Journey(req, plan, chains[rid], start)
@@ -196,20 +223,26 @@ class FullDecoder:
 
         output = []
         for t in sequence:
+            checkpoint()
             j = journeys[t.request_id]
-            if t.kind == "FLIGHT":
-                row = self._flight(j, t, seats[t.resource_id])
-            else:
-                car = cars[t.resource_id]
-                row = self._stop(j, t, car, self.appointments.get(t.task_id) if preserve else None)
-                car.stops.append(row)
-            output.append(row)
-            j.index += 1
-            j.advance_prefix_and_walks(snap)
+            try:
+                if t.kind == "FLIGHT":
+                    row = self._flight(j, t, seats[t.resource_id])
+                else:
+                    car = cars[t.resource_id]
+                    row = self._stop(j, t, car, self.appointments.get(t.task_id) if preserve else None)
+                    car.stops.append(row)
+                output.append(row)
+                j.index += 1
+                j.advance_prefix_and_walks(snap)
+            except _Infeasible as exc:
+                exc.task_id = t.task_id
+                raise
         trips = frozen({rid: tuple(j.trips) for rid, j in journeys.items()})
         ends = frozen({rid: rows[-1].dropoff for rid, rows in trips.items()})
         nodes = {}
         for vid, car in cars.items():
+            checkpoint()
             original = snap.vehicles[vid]
             node = car.node
             # A vehicle without a replacement queue continues its P1 road program.
@@ -225,8 +258,7 @@ class FullDecoder:
                     node = car.node
             nodes[vid] = node
         return (tuple(output), frozen({k: tuple(c.stops) for k, c in cars.items()}), frozen(nodes),
-                frozen({k: frozen(v) for k, v in seats.items()}), trips, ends,
-                *objective(snap.requests, ends, self.beta, self.delta))
+                frozen({k: frozen(v) for k, v in seats.items()}), trips, ends)
 
     def _stop(self, j, t, car, appointment):
         rid, req, step = t.request_id, j.request, j.step
@@ -283,12 +315,15 @@ class FullDecoder:
         j.finish(flight.arrive_at)
         return TimedTask(t, Decimal(flight.depart_at), flight.depart_at, flight.arrive_at, None)
 
-    def initialize(self, rng):
+    def initial_encoding(self, rng, *, checkpoint=None):
         """§5.3.4 samples uniformly among IDs with remaining tasks at each draw."""
+        check = checkpoint or _unchecked
+        check()
         base = self.safe_baseline
         choices, sequence = dict(base.encoding.choices), list(base.encoding.sequence)
         remaining = {}
         for rid, typ in sorted(self.snapshot.request_types().items()):
+            check()
             plans = self.options.get(rid)
             if typ == 3 or not plans:
                 continue
@@ -299,11 +334,16 @@ class FullDecoder:
                 choices[rid] = choice
                 remaining[rid] = len(pending_formal(task_chain(plan, choice)))
         while remaining:
+            check()
             rid = rng.choice(tuple(remaining))
             sequence.append(rid)
             remaining[rid] -= 1
             if not remaining[rid]:
                 del remaining[rid]
-        trial = self.decode(Encoding(choices, sequence))
+        return Encoding(choices, sequence)
+
+    def initialize(self, rng):
+        base = self.safe_baseline
+        trial = self.decode(self.initial_encoding(rng))
         current = trial if trial.feasible else base
         return InitialSolutions(base, current, current if current.better_than(base) else base, trial)
