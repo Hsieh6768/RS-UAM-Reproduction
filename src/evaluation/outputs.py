@@ -21,6 +21,7 @@ import yaml
 
 from src.data.sources import fingerprint
 from src.evaluation.audit import audit_world
+from src.evaluation.profiling import ProfileConfig, ProfileRun
 from src.evaluation.metrics import (
     flight_report, inputs_origin, passenger_reports, performance_report, report_markdown, sim_date,
 )
@@ -79,6 +80,7 @@ class RunOutput:
     """One writer and one directory per invocation. COMPLETE is the last durable update."""
 
     def __init__(self, output_root, config, manifest):
+        options = ProfileConfig.from_config(config)
         self.config = _plain(config)
         self.origin = inputs_origin(config)
         run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex
@@ -94,6 +96,8 @@ class RunOutput:
             "method_deviations": ["D002", "D004", "D008", "D010", "D011", "D012", "D013", "D014"],
             **_plain(manifest),
         }
+        if options.enabled:
+            self.manifest["run_class"] = "PROFILING"
         _write_json(self.path / "manifest.json", self.manifest)
         self._log = (self.path / "console.log").open("x", encoding="utf-8", buffering=1)
         self._batches = (self.path / "batches.csv").open("x", newline="", encoding="utf-8")
@@ -105,6 +109,7 @@ class RunOutput:
                                     "road_purpose"))
         self.last_batch = {}
         self.totals = Counter()
+        self.profile_run = ProfileRun(self.path, options) if options.enabled else None
 
     def update_manifest(self, fields):
         self.manifest.update(_plain(fields))
@@ -169,7 +174,12 @@ class RunOutput:
             "batch_count": perf["batch_count"], "last_simulated_datetime": sim_date(self.origin, snapshot.time),
             "last_simulated_second": snapshot.time, "final_audit": audit["status"],
         }
-        (self.path / "summary.md").write_text(report_markdown(summary, audit, perf), encoding="utf-8")
+        heading = ""
+        if self.profile_run is not None:
+            summary["run_class"] = "PROFILING"
+            self.manifest["profiling_counts"] = self.profile_run.counts()
+            heading = "**PROFILING**\n\n"
+        (self.path / "summary.md").write_text(heading + report_markdown(summary, audit, perf), encoding="utf-8")
         _write_json(self.path / "summary.json", summary)
         self._log.close()
         checksums = {p.name: fingerprint(p) for p in sorted(self.path.iterdir())
@@ -196,4 +206,6 @@ class RunOutput:
         for name in ("summary.json", "summary.md"):
             (self.path / name).unlink(missing_ok=True)
         _write_json(self.path / "audit.json", {"status": status, "cause": str(exception)})
+        if self.profile_run is not None:
+            self.manifest["profiling_counts"] = self.profile_run.counts()
         self.update_manifest({"status": status, "end_wall": _now(), "last_successful_batch": last})

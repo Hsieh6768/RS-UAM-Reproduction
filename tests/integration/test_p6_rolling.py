@@ -25,7 +25,7 @@ class Collect:
 
 def scenario(directory, demand, *, evaluation=(0, 20), coverage=1000, cars=(0,),
              road_time=17, interval=10, validator=True, flights=False, tol=45,
-             rebalance=True, net=None):
+             rebalance=True, net=None, profile_run=None):
     if net is None:
         net = network([0, .01], [(0, 1, road_time), (1, 0, road_time)],
                       (0, 1) if flights else (), [(0, 1, 5)] if flights else ())
@@ -47,7 +47,7 @@ def scenario(directory, demand, *, evaluation=(0, 20), coverage=1000, cars=(0,),
                        seed=32, batch_seconds=interval, m1_config=M1Config(), m3_config=M3Config(),
                        m4_config=M4Config(outer_loops_per_request=1, inner_loops=2),
                        m5_config=M5Config(enabled=rebalance), validator_enabled=validator,
-                       reporter=out, failure_dir=directory)
+                       reporter=out, failure_dir=directory, profile_run=profile_run)
     return snap, out.rows, out.history, loaded
 
 

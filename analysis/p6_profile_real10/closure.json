@@ -1,0 +1,942 @@
+{
+  "B": {
+    "cohorts": {
+      "WARMUP": {
+        "valid": 2490,
+        "accepted": 591,
+        "completed": 591,
+        "expired": 1899,
+        "modes": {
+          "SHRS": 330,
+          "RS-UAM": 259,
+          "MHRS": 2,
+          "Unserved": 1899
+        },
+        "service_rate": 0.23734939759036144,
+        "mean_trip_min": 13.632600112803159,
+        "mean_wait_min": 5.5672024816694865,
+        "mean_detour_min": 4.4652623225565184,
+        "negative_detour": 46
+      },
+      "EVALUATION": {
+        "valid": 187,
+        "accepted": 45,
+        "completed": 45,
+        "expired": 142,
+        "modes": {
+          "Unserved": 142,
+          "SHRS": 22,
+          "RS-UAM": 23
+        },
+        "service_rate": 0.24064171122994651,
+        "mean_trip_min": 14.064444444444444,
+        "mean_wait_min": 5.433333333333334,
+        "mean_detour_min": 3.8046333350377064,
+        "negative_detour": 4
+      },
+      "TAIL": {
+        "valid": 490,
+        "accepted": 109,
+        "completed": 109,
+        "expired": 381,
+        "modes": {
+          "Unserved": 381,
+          "SHRS": 50,
+          "RS-UAM": 58,
+          "MHRS": 1
+        },
+        "service_rate": 0.22244897959183674,
+        "mean_trip_min": 13.880581039755352,
+        "mean_wait_min": 5.769724770642202,
+        "mean_detour_min": 4.639138350815753,
+        "negative_detour": 6
+      },
+      "ALL": {
+        "valid": 3167,
+        "accepted": 745,
+        "completed": 745,
+        "expired": 2422,
+        "modes": {
+          "SHRS": 402,
+          "RS-UAM": 340,
+          "MHRS": 3,
+          "Unserved": 2422
+        },
+        "service_rate": 0.2352383959583202,
+        "mean_trip_min": 13.694966442953021,
+        "mean_wait_min": 5.588747203579419,
+        "mean_detour_min": 4.450798138183243,
+        "negative_detour": 56
+      }
+    },
+    "resource_audit": {
+      "events": {
+        "DEPART": 3540,
+        "ARRIVAL": 3167,
+        "WALK_START": 349,
+        "EDGE_END": 58413,
+        "LAND": 3523,
+        "PICKUP": 751,
+        "DRIVE": 1396,
+        "WALK_END": 349,
+        "DROPOFF": 751,
+        "EXPIRE": 3167,
+        "EXPIRE_FINAL": 3147
+      },
+      "event_rows": 78553,
+      "tasks": 2683,
+      "road_meters": {
+        "PICKUP": "812990.777041293581591555",
+        "LOADED": "1689863.943720261135133530",
+        "REBALANCE": "5457.9725461328236480"
+      },
+      "flight_instances": 4020,
+      "flights_with_riders": 440,
+      "flight_passenger_legs": 483,
+      "seats": 687,
+      "departed_capacity": 14160,
+      "seat_utilization": 0.04851694915254237
+    },
+    "outputs_verified": 10,
+    "eval_terminal_second": 9378,
+    "last": "2013-05-05 00:55:30",
+    "status": "COMPLETE",
+    "audit": "PASS",
+    "run_wall_s": 11166.935322,
+    "periods": {
+      "WARMUP": {
+        "count": 720,
+        "budget_exhausted": 707,
+        "batch_wall_budget_exceeded": 708,
+        "m5_status": {
+          "READY": 2,
+          "SKIPPED": 5,
+          "UNEXECUTABLE": 713
+        },
+        "fallback": {
+          "False": 455,
+          "True": 265
+        },
+        "rebalanced": 10,
+        "eval_accepted_end": 0,
+        "eval_completed_end": 0,
+        "m4_wall_ms": {
+          "total": 7113419.433199996,
+          "mean": 9879.749212777773,
+          "p50": 10000.237650000145,
+          "p95": 10019.69494000008,
+          "p99": 10059.189503999927,
+          "maximum": 10074.244499999622
+        },
+        "batch_wall_ms": {
+          "total": 8305013.014700005,
+          "mean": 11534.74029819445,
+          "p50": 11026.063350000073,
+          "p95": 15535.96355500017,
+          "p99": 17840.197489000024,
+          "maximum": 20400.86240000028
+        },
+        "m4_cpu_ms": {
+          "total": 7094859.375,
+          "mean": 9853.971354166666,
+          "p50": 9984.375,
+          "p95": 10015.625,
+          "p99": 10046.875,
+          "maximum": 10078.125
+        },
+        "m1_wall_ms": {
+          "total": 1060768.0802000035,
+          "mean": 1473.2890002777826,
+          "p50": 859.3847999998161,
+          "p95": 5272.894189999929,
+          "p99": 7618.686368999644,
+          "maximum": 10105.54970000021
+        },
+        "m3_wall_ms": {
+          "total": 19454.64110000176,
+          "mean": 27.020334861113557,
+          "p50": 27.102449999802047,
+          "p95": 33.21938999961276,
+          "p99": 36.372133999993785,
+          "maximum": 109.64790000070934
+        },
+        "validator_wall_ms": {
+          "total": 70084.01360000935,
+          "mean": 97.33890777779077,
+          "p50": 90.57685000016136,
+          "p95": 169.55435500035486,
+          "p99": 199.5589320004728,
+          "maximum": 546.6497999999547
+        },
+        "m5_wall_ms": {
+          "total": 11168.118800013537,
+          "mean": 15.511276111129913,
+          "p50": 5.380949999789664,
+          "p95": 158.44585499998018,
+          "p99": 168.49604899999997,
+          "maximum": 660.3321000000016
+        },
+        "candidates_evaluated": {
+          "total": 80820.0,
+          "mean": 112.25,
+          "p50": 58.0,
+          "p95": 251.69999999999936,
+          "p99": 1731.9999999999945,
+          "maximum": 2601.0
+        },
+        "throughput_per_s": 11.361624428160965
+      },
+      "EVALUATION": {
+        "count": 60,
+        "budget_exhausted": 60,
+        "batch_wall_budget_exceeded": 60,
+        "m5_status": {
+          "UNEXECUTABLE": 60
+        },
+        "fallback": {
+          "False": 35,
+          "True": 25
+        },
+        "rebalanced": 0,
+        "eval_accepted_end": 45,
+        "eval_completed_end": 2,
+        "m4_wall_ms": {
+          "total": 600181.1934999949,
+          "mean": 10003.019891666581,
+          "p50": 10000.230449999435,
+          "p95": 10010.270320000927,
+          "p99": 10061.527267001056,
+          "maximum": 10079.250100001445
+        },
+        "batch_wall_ms": {
+          "total": 689720.1864999988,
+          "mean": 11495.336441666646,
+          "p50": 10949.02705000004,
+          "p95": 14902.542600000288,
+          "p99": 16760.398852000137,
+          "maximum": 17896.18849999897
+        },
+        "m4_cpu_ms": {
+          "total": 599109.375,
+          "mean": 9985.15625,
+          "p50": 9984.375,
+          "p95": 10000.78125,
+          "p99": 10068.90625,
+          "maximum": 10078.125
+        },
+        "m1_wall_ms": {
+          "total": 79293.88969999309,
+          "mean": 1321.5648283332182,
+          "p50": 807.2913500000141,
+          "p95": 4598.256644999673,
+          "p99": 6491.373381999941,
+          "maximum": 7552.364600000146
+        },
+        "m3_wall_ms": {
+          "total": 1787.735400006568,
+          "mean": 29.795590000109467,
+          "p50": 31.300200000259792,
+          "p95": 34.75014000050578,
+          "p99": 35.67717000054472,
+          "maximum": 35.693100000571576
+        },
+        "validator_wall_ms": {
+          "total": 5287.411200000861,
+          "mean": 88.12352000001435,
+          "p50": 80.55609999973967,
+          "p95": 164.71670999935665,
+          "p99": 186.51171999972564,
+          "maximum": 204.27190000009432
+        },
+        "m5_wall_ms": {
+          "total": 344.55200000229524,
+          "mean": 5.742533333371587,
+          "p50": 5.6101500003933324,
+          "p95": 6.794704999174428,
+          "p99": 7.018517000506107,
+          "maximum": 7.233100001030834
+        },
+        "candidates_evaluated": {
+          "total": 2878.0,
+          "mean": 47.96666666666667,
+          "p50": 47.5,
+          "p95": 84.54999999999997,
+          "p99": 108.06999999999991,
+          "maximum": 124.0
+        },
+        "throughput_per_s": 4.7952185626090005
+      },
+      "TAIL": {
+        "count": 274,
+        "budget_exhausted": 176,
+        "batch_wall_budget_exceeded": 176,
+        "m5_status": {
+          "UNEXECUTABLE": 158,
+          "SKIPPED": 116
+        },
+        "fallback": {
+          "False": 85,
+          "True": 189
+        },
+        "rebalanced": 0,
+        "eval_accepted_end": 45,
+        "eval_completed_end": 45,
+        "m4_wall_ms": {
+          "total": 1924793.06820003,
+          "mean": 7024.792219708138,
+          "p50": 10000.199850000172,
+          "p95": 10000.60333500096,
+          "p99": 10021.1784980003,
+          "maximum": 10057.52819999907
+        },
+        "batch_wall_ms": {
+          "total": 2168717.3333999836,
+          "mean": 7915.026764233517,
+          "p50": 10227.400200000375,
+          "p95": 14283.952320000297,
+          "p99": 16280.594965000468,
+          "maximum": 19422.090000000026
+        },
+        "m4_cpu_ms": {
+          "total": 1911593.75,
+          "mean": 6976.619525547445,
+          "p50": 9953.125,
+          "p95": 10000.0,
+          "p99": 10015.625,
+          "maximum": 10046.875
+        },
+        "m1_wall_ms": {
+          "total": 205477.93179998733,
+          "mean": 749.9194591240414,
+          "p50": 0.0473000000056345,
+          "p95": 3985.853580000181,
+          "p99": 5976.619384000909,
+          "maximum": 9094.836399999622
+        },
+        "m3_wall_ms": {
+          "total": 4637.68329999948,
+          "mean": 16.92585145985212,
+          "p50": 24.657299999489624,
+          "p95": 29.659634999916307,
+          "p99": 33.497763999948766,
+          "maximum": 117.44150000049558
+        },
+        "validator_wall_ms": {
+          "total": 20665.303600027983,
+          "mean": 75.42081605849629,
+          "p50": 78.71185000021796,
+          "p95": 164.17437000100088,
+          "p99": 220.75681700131065,
+          "maximum": 376.48730000000796
+        },
+        "m5_wall_ms": {
+          "total": 1479.7621000270738,
+          "mean": 5.400591605938225,
+          "p50": 5.223250000199187,
+          "p95": 7.227590000820779,
+          "p99": 59.62676099936287,
+          "maximum": 61.3720999990619
+        },
+        "candidates_evaluated": {
+          "total": 186399.0,
+          "mean": 680.2883211678832,
+          "p50": 88.5,
+          "p95": 3946.799999999997,
+          "p99": 5237.86,
+          "maximum": 5252.0
+        },
+        "throughput_per_s": 96.84105947779156
+      }
+    },
+    "all": {
+      "count": 1054,
+      "budget_exhausted": 943,
+      "batch_wall_budget_exceeded": 944,
+      "m5_status": {
+        "READY": 2,
+        "SKIPPED": 121,
+        "UNEXECUTABLE": 931
+      },
+      "fallback": {
+        "False": 575,
+        "True": 479
+      },
+      "rebalanced": 10,
+      "eval_accepted_end": 45,
+      "eval_completed_end": 45,
+      "m4_wall_ms": {
+        "total": 9638393.694900021,
+        "mean": 9144.58604829224,
+        "p50": 10000.229849999414,
+        "p95": 10010.79489000002,
+        "p99": 10056.863950999355,
+        "maximum": 10079.250100001445
+      },
+      "batch_wall_ms": {
+        "total": 11163450.534599988,
+        "mean": 10591.509046110044,
+        "p50": 10940.368200000306,
+        "p95": 15397.320284999978,
+        "p99": 17706.703376999587,
+        "maximum": 20400.86240000028
+      },
+      "m4_cpu_ms": {
+        "total": 9605562.5,
+        "mean": 9113.436907020872,
+        "p50": 9984.375,
+        "p95": 10000.0,
+        "p99": 10046.875,
+        "maximum": 10078.125
+      },
+      "m1_wall_ms": {
+        "total": 1345539.901699984,
+        "mean": 1276.603322296,
+        "p50": 796.9442000000981,
+        "p95": 5161.551930000269,
+        "p99": 7389.828970000007,
+        "maximum": 10105.54970000021
+      },
+      "m3_wall_ms": {
+        "total": 25880.05980000781,
+        "mean": 24.55413643264498,
+        "p50": 26.447700000289842,
+        "p95": 33.053169999698184,
+        "p99": 35.77187200022309,
+        "maximum": 117.44150000049558
+      },
+      "validator_wall_ms": {
+        "total": 96036.72840003818,
+        "mean": 91.11644060724684,
+        "p50": 86.21229999971547,
+        "p95": 169.31879000012484,
+        "p99": 201.40343600042806,
+        "maximum": 546.6497999999547
+      },
+      "m5_wall_ms": {
+        "total": 12992.432900042906,
+        "mean": 12.32678643267828,
+        "p50": 5.3662999998778105,
+        "p95": 41.998119999998096,
+        "p99": 167.07428000002295,
+        "maximum": 660.3321000000016
+      },
+      "candidates_evaluated": {
+        "total": 270097.0,
+        "mean": 256.25901328273244,
+        "p50": 61.0,
+        "p95": 1144.0499999999888,
+        "p99": 4164.430000000002,
+        "maximum": 5252.0
+      },
+      "throughput_per_s": 28.023030449868102
+    }
+  },
+  "P": {
+    "cohorts": {
+      "WARMUP": {
+        "valid": 2490,
+        "accepted": 605,
+        "completed": 605,
+        "expired": 1885,
+        "modes": {
+          "SHRS": 340,
+          "RS-UAM": 260,
+          "MHRS": 5,
+          "Unserved": 1885
+        },
+        "service_rate": 0.2429718875502008,
+        "mean_trip_min": 13.295316804407713,
+        "mean_wait_min": 5.5587603305785125,
+        "mean_detour_min": 4.398031736677731,
+        "negative_detour": 54
+      },
+      "EVALUATION": {
+        "valid": 187,
+        "accepted": 39,
+        "completed": 39,
+        "expired": 148,
+        "modes": {
+          "Unserved": 148,
+          "RS-UAM": 21,
+          "SHRS": 18
+        },
+        "service_rate": 0.20855614973262032,
+        "mean_trip_min": 14.658119658119658,
+        "mean_wait_min": 5.401709401709402,
+        "mean_detour_min": 4.567427314403917,
+        "negative_detour": 2
+      },
+      "TAIL": {
+        "valid": 516,
+        "accepted": 123,
+        "completed": 123,
+        "expired": 393,
+        "modes": {
+          "SHRS": 58,
+          "Unserved": 393,
+          "RS-UAM": 63,
+          "MHRS": 2
+        },
+        "service_rate": 0.23837209302325582,
+        "mean_trip_min": 14.061246612466125,
+        "mean_wait_min": 5.6663956639566395,
+        "mean_detour_min": 4.838831434121941,
+        "negative_detour": 7
+      },
+      "ALL": {
+        "valid": 3193,
+        "accepted": 767,
+        "completed": 767,
+        "expired": 2426,
+        "modes": {
+          "SHRS": 416,
+          "RS-UAM": 344,
+          "MHRS": 7,
+          "Unserved": 2426
+        },
+        "service_rate": 0.24021296586282492,
+        "mean_trip_min": 13.487440243372447,
+        "mean_wait_min": 5.568035636679705,
+        "mean_detour_min": 4.477333940480807,
+        "negative_detour": 63
+      }
+    },
+    "resource_audit": {
+      "events": {
+        "DEPART": 3600,
+        "ARRIVAL": 3193,
+        "WALK_START": 354,
+        "EDGE_END": 60139,
+        "LAND": 3563,
+        "PICKUP": 778,
+        "DRIVE": 1448,
+        "WALK_END": 354,
+        "DROPOFF": 778,
+        "EXPIRE": 3193,
+        "EXPIRE_FINAL": 3178
+      },
+      "event_rows": 80578,
+      "tasks": 2752,
+      "road_meters": {
+        "PICKUP": "831979.526429794468672255",
+        "LOADED": "1714246.232089130621988495",
+        "REBALANCE": "5058.4551783454206080"
+      },
+      "flight_instances": 4020,
+      "flights_with_riders": 434,
+      "flight_passenger_legs": 488,
+      "seats": 697,
+      "departed_capacity": 14400,
+      "seat_utilization": 0.04840277777777778
+    },
+    "outputs_verified": 11,
+    "eval_terminal_second": 9442,
+    "last": "2013-05-05 00:57:40",
+    "status": "COMPLETE",
+    "audit": "PASS",
+    "run_wall_s": 11223.513131,
+    "periods": {
+      "WARMUP": {
+        "count": 720,
+        "budget_exhausted": 707,
+        "batch_wall_budget_exceeded": 708,
+        "m5_status": {
+          "READY": 2,
+          "SKIPPED": 5,
+          "UNEXECUTABLE": 713
+        },
+        "fallback": {
+          "False": 469,
+          "True": 251
+        },
+        "rebalanced": 10,
+        "eval_accepted_end": 0,
+        "eval_completed_end": 0,
+        "m4_wall_ms": {
+          "total": 7113188.273000004,
+          "mean": 9879.42815694445,
+          "p50": 10000.231849999636,
+          "p95": 10010.16612500016,
+          "p99": 10058.478811999785,
+          "maximum": 10078.204100000221
+        },
+        "batch_wall_ms": {
+          "total": 8287526.593199994,
+          "mean": 11510.453601666659,
+          "p50": 11007.811049999986,
+          "p95": 15449.617194999993,
+          "p99": 18092.126746000056,
+          "maximum": 19792.81600000013
+        },
+        "m4_cpu_ms": {
+          "total": 7098250.0,
+          "mean": 9858.680555555555,
+          "p50": 9984.375,
+          "p95": 10000.0,
+          "p99": 10043.90625,
+          "maximum": 10078.125
+        },
+        "m1_wall_ms": {
+          "total": 1042091.0324999976,
+          "mean": 1447.3486562499968,
+          "p50": 848.8317999997435,
+          "p95": 5234.1279350001505,
+          "p99": 7786.965167999992,
+          "maximum": 9483.498600000075
+        },
+        "m3_wall_ms": {
+          "total": 20277.200799998747,
+          "mean": 28.16277888888715,
+          "p50": 27.86775000004127,
+          "p95": 34.671539999840206,
+          "p99": 80.98097000005339,
+          "maximum": 109.53250000011394
+        },
+        "validator_wall_ms": {
+          "total": 65850.07089999726,
+          "mean": 91.45843180555174,
+          "p50": 85.0833499998771,
+          "p95": 165.2525250000735,
+          "p99": 199.4436609998909,
+          "maximum": 238.70560000068508
+        },
+        "m5_wall_ms": {
+          "total": 16075.385500009024,
+          "mean": 22.326924305568088,
+          "p50": 5.657000000155676,
+          "p95": 113.42950000001792,
+          "p99": 168.362568,
+          "maximum": 654.0852999999984
+        },
+        "candidates_evaluated": {
+          "total": 80602.0,
+          "mean": 111.94722222222222,
+          "p50": 57.0,
+          "p95": 249.29999999999973,
+          "p99": 1776.1099999999983,
+          "maximum": 2601.0
+        },
+        "throughput_per_s": 11.331346353638116
+      },
+      "EVALUATION": {
+        "count": 60,
+        "budget_exhausted": 60,
+        "batch_wall_budget_exceeded": 60,
+        "m5_status": {
+          "UNEXECUTABLE": 60
+        },
+        "fallback": {
+          "False": 34,
+          "True": 26
+        },
+        "rebalanced": 0,
+        "eval_accepted_end": 39,
+        "eval_completed_end": 0,
+        "m4_wall_ms": {
+          "total": 600064.8827999957,
+          "mean": 10001.081379999929,
+          "p50": 10000.221250000322,
+          "p95": 10000.328690001334,
+          "p99": 10021.882400000522,
+          "maximum": 10048.284899999999
+        },
+        "batch_wall_ms": {
+          "total": 690543.494500018,
+          "mean": 11509.058241666966,
+          "p50": 10977.126200000384,
+          "p95": 14668.07505999968,
+          "p99": 16393.145684000407,
+          "maximum": 17296.867799999745
+        },
+        "m4_cpu_ms": {
+          "total": 598843.75,
+          "mean": 9980.729166666666,
+          "p50": 9984.375,
+          "p95": 10000.0,
+          "p99": 10012.8125,
+          "maximum": 10031.25
+        },
+        "m1_wall_ms": {
+          "total": 77229.10390000652,
+          "mean": 1287.1517316667753,
+          "p50": 797.098349999942,
+          "p95": 4478.549194999503,
+          "p99": 6023.183673999642,
+          "maximum": 6833.850400000301
+        },
+        "m3_wall_ms": {
+          "total": 1828.1244999907358,
+          "mean": 30.468741666512262,
+          "p50": 31.003850000161037,
+          "p95": 34.58505500029787,
+          "p99": 35.30620599976828,
+          "maximum": 35.369100000025355
+        },
+        "validator_wall_ms": {
+          "total": 6363.657599997168,
+          "mean": 106.0609599999528,
+          "p50": 95.69860000010522,
+          "p95": 184.11958500064426,
+          "p99": 214.50941099988995,
+          "maximum": 215.96499999941443
+        },
+        "m5_wall_ms": {
+          "total": 2235.5341000056796,
+          "mean": 37.258901666761325,
+          "p50": 56.60119999993185,
+          "p95": 60.11166500047693,
+          "p99": 63.49059099997248,
+          "maximum": 64.04230000043754
+        },
+        "candidates_evaluated": {
+          "total": 3127.0,
+          "mean": 52.11666666666667,
+          "p50": 47.0,
+          "p95": 105.49999999999997,
+          "p99": 120.63999999999999,
+          "maximum": 123.0
+        },
+        "throughput_per_s": 5.211103148394443
+      },
+      "TAIL": {
+        "count": 287,
+        "budget_exhausted": 180,
+        "batch_wall_budget_exceeded": 180,
+        "m5_status": {
+          "UNEXECUTABLE": 165,
+          "SKIPPED": 122
+        },
+        "fallback": {
+          "True": 186,
+          "False": 101
+        },
+        "rebalanced": 0,
+        "eval_accepted_end": 39,
+        "eval_completed_end": 39,
+        "m4_wall_ms": {
+          "total": 1992584.6338000116,
+          "mean": 6942.803602090633,
+          "p50": 10000.178800000867,
+          "p95": 10002.147420000256,
+          "p99": 10055.00393599912,
+          "maximum": 10071.838100000605
+        },
+        "batch_wall_ms": {
+          "total": 2242211.2520000027,
+          "mean": 7812.582759581891,
+          "p50": 10203.008000000409,
+          "p95": 14124.468119999981,
+          "p99": 16201.785094000223,
+          "maximum": 19013.366600000154
+        },
+        "m4_cpu_ms": {
+          "total": 1988593.75,
+          "mean": 6928.898083623693,
+          "p50": 9968.75,
+          "p95": 10000.0,
+          "p99": 10049.0625,
+          "maximum": 10062.5
+        },
+        "m1_wall_ms": {
+          "total": 209763.05079998565,
+          "mean": 730.8817101044796,
+          "p50": 0.04179999996267725,
+          "p95": 3882.6825800004353,
+          "p99": 5903.561325998633,
+          "maximum": 8732.325000000856
+        },
+        "m3_wall_ms": {
+          "total": 4899.77479999834,
+          "mean": 17.07238606271199,
+          "p50": 25.47950000007404,
+          "p95": 30.868779999582326,
+          "p99": 32.51260600100067,
+          "maximum": 107.33360000085668
+        },
+        "validator_wall_ms": {
+          "total": 22679.344499982108,
+          "mean": 79.02210627171466,
+          "p50": 78.39469999998983,
+          "p95": 171.51349999985533,
+          "p99": 218.55394399943148,
+          "maximum": 243.27889999949548
+        },
+        "m5_wall_ms": {
+          "total": 1037.0591999708267,
+          "mean": 3.6134466897938213,
+          "p50": 5.600399999821093,
+          "p95": 6.51886999985436,
+          "p99": 7.020002000172098,
+          "maximum": 8.381899999221787
+        },
+        "candidates_evaluated": {
+          "total": 230201.0,
+          "mean": 802.0940766550523,
+          "p50": 91.0,
+          "p95": 5043.2,
+          "p99": 5508.879999999999,
+          "maximum": 5751.0
+        },
+        "throughput_per_s": 115.52884434373513
+      }
+    },
+    "all": {
+      "count": 1067,
+      "budget_exhausted": 947,
+      "batch_wall_budget_exceeded": 948,
+      "m5_status": {
+        "READY": 2,
+        "SKIPPED": 127,
+        "UNEXECUTABLE": 938
+      },
+      "fallback": {
+        "False": 604,
+        "True": 463
+      },
+      "rebalanced": 10,
+      "eval_accepted_end": 39,
+      "eval_completed_end": 39,
+      "m4_wall_ms": {
+        "total": 9705837.789600011,
+        "mean": 9096.380308903477,
+        "p50": 10000.221799999963,
+        "p95": 10008.176929999809,
+        "p99": 10058.462267999912,
+        "maximum": 10078.204100000221
+      },
+      "batch_wall_ms": {
+        "total": 11220281.339700013,
+        "mean": 10515.727591096545,
+        "p50": 10939.984800000275,
+        "p95": 15367.201920000025,
+        "p99": 17592.067227999916,
+        "maximum": 19792.81600000013
+      },
+      "m4_cpu_ms": {
+        "total": 9685687.5,
+        "mean": 9077.495313964386,
+        "p50": 9984.375,
+        "p95": 10000.0,
+        "p99": 10046.875,
+        "maximum": 10078.125
+      },
+      "m1_wall_ms": {
+        "total": 1329083.1871999898,
+        "mean": 1245.626229803177,
+        "p50": 783.6794999998347,
+        "p95": 5090.699710000444,
+        "p99": 7277.042597999998,
+        "maximum": 9483.498600000075
+      },
+      "m3_wall_ms": {
+        "total": 27005.100099987823,
+        "mean": 25.30937216493704,
+        "p50": 27.429200000369747,
+        "p95": 34.1173500005425,
+        "p99": 42.09052599987882,
+        "maximum": 109.53250000011394
+      },
+      "validator_wall_ms": {
+        "total": 94893.07299997652,
+        "mean": 88.93446391750376,
+        "p50": 84.51210000021092,
+        "p95": 169.63617999986124,
+        "p99": 204.809895999824,
+        "maximum": 243.27889999949548
+      },
+      "m5_wall_ms": {
+        "total": 19347.97879998553,
+        "mean": 18.133063542629362,
+        "p50": 5.686900000000605,
+        "p95": 63.79740000006676,
+        "p99": 167.21315400001345,
+        "maximum": 654.0852999999984
+      },
+      "candidates_evaluated": {
+        "total": 313930.0,
+        "mean": 294.2174320524836,
+        "p50": 63.0,
+        "p95": 1401.0,
+        "p99": 5201.779999999999,
+        "maximum": 5751.0
+      },
+      "throughput_per_s": 32.34445153579446
+    }
+  },
+  "paired_eval": {
+    "EXPIRED_UNSERVED/EXPIRED_UNSERVED": 128,
+    "EXPIRED_UNSERVED/COMPLETED": 14,
+    "COMPLETED/EXPIRED_UNSERVED": 20,
+    "COMPLETED/COMPLETED": 25
+  },
+  "first_different_batch": {
+    "candidates_evaluated": "13",
+    "best_score": "19",
+    "accepted_new": "26",
+    "accepted_incomplete": "26",
+    "m5_status": "939"
+  },
+  "identity": {
+    "manifest_fields_equal": {
+      "code_commit": true,
+      "dirty_tree": true,
+      "source_tree_sha256": false,
+      "run_id": false,
+      "start_wall": false,
+      "status": true,
+      "python_version": true,
+      "python_executable": true,
+      "environment": true,
+      "os": true,
+      "cpu_model": true,
+      "gurobi_version": true,
+      "configs_sha256": false,
+      "method_deviations": true,
+      "mode": true,
+      "source": true,
+      "vehicle_count": true,
+      "seed_fleet": true,
+      "seed_halns": true,
+      "warmup_seconds": true,
+      "evaluation_seconds": true,
+      "warmup_window": true,
+      "cohort_window": true,
+      "tail_policy": true,
+      "m4_wall_budget_seconds": true,
+      "validator_enabled": true,
+      "input_counts": true,
+      "seed_data": true,
+      "processed_sample_sha256": true,
+      "road_network_sha256": true,
+      "air_routes_sha256": true,
+      "raw_tlc_sha256": true,
+      "raw_osm_sha256": true,
+      "source_hash_provenance": true,
+      "input_manifest_sha256": true,
+      "air_audit_sha256": true,
+      "vertiports_sha256": true,
+      "sample_paths": true,
+      "coverage_end_exclusive": true,
+      "expected_evaluation_requests": true,
+      "road_graph_version": true,
+      "initial_fleet_nodes": true,
+      "end_wall": false,
+      "output_checksums": false
+    },
+    "profile_settings": {
+      "enabled": true,
+      "batch_every": 10,
+      "candidate_every": 32,
+      "max_candidates_per_batch": 8,
+      "max_detail_spans_per_batch": 512,
+      "max_requests_per_batch": 3,
+      "max_output_bytes": 4194304
+    },
+    "other_effective_config_equal": true,
+    "current_source_sha256": "96376675654f4d8209362d9fcd3ab9ce3bad4f663f1ef724021a8b1642523f23",
+    "source": {
+      "B": "b313b62d931c87e931d8d12894d0ac1b2eee582d1812cd290bb15edbdda30ed4",
+      "P": "96376675654f4d8209362d9fcd3ab9ce3bad4f663f1ef724021a8b1642523f23"
+    }
+  }
+}

@@ -86,13 +86,24 @@ class PartitionedDecoder:
         return (tuple(ordered), frozen(cars), frozen(nodes), frozen(seats), trips, ends,
                 *objective(snap.requests, ends, full.beta, full.delta))
 
-    def decode(self, encoding, *, preserve_appointments=False, checkpoint=None):
+    def decode(self, encoding, *, preserve_appointments=False, checkpoint=None, detail=None):
         full, check = self.full, checkpoint or _unchecked
         wall, cpu = perf_counter(), process_time()
         full._check_input(encoding, preserve_appointments)
         repairs, components = [], ()
         evaluated = reused = 0
         failure = None
+        build = rebuild = TaskGraph.from_tasks
+        local = replay = self._local
+        combine = self._combine
+        select = min
+        if detail is not None:
+            build = detail.detail("task_graph", build)
+            rebuild = detail.detail("repair_graph", rebuild)
+            local = detail.detail("local_physical", local)
+            replay = detail.detail("repair_local_physical", replay)
+            combine = detail.detail("combine", combine)
+            select = detail.detail("select_conflict", select)
         cache = dict(self._previous)
         try:
             check()
@@ -103,9 +114,10 @@ class PartitionedDecoder:
                 failure = exc.conflict
             if failure is None:
                 positions = {t.task_id: i for i, t in enumerate(sequence)}
-                components = TaskGraph.from_tasks(enumerate(sequence), plans, check).components
+                components = build(enumerate(sequence), plans, check).components
             while failure is None:
                 parts, conflicts, live = [], [], {}
+                evaluate = replay if repairs else local
                 for comp in components:
                     check()
                     choices = tuple((r, encoding.choices[r]) for r in comp.request_ids)
@@ -115,7 +127,7 @@ class PartitionedDecoder:
                         reused += 1
                     else:
                         evaluated += 1
-                        part = self._local(comp, plans, chains, preserve_appointments, check)
+                        part = evaluate(comp, plans, chains, preserve_appointments, check)
                     live[key] = part
                     if isinstance(part, _LocalFailure):
                         # P4-A replays all initial prefixes by request ID before
@@ -127,20 +139,20 @@ class PartitionedDecoder:
                         parts.append(part)
                 cache = live
                 if not conflicts:
-                    result = self._combine(parts, sequence, encoding, preserve_appointments, check)
+                    result = combine(parts, sequence, encoding, preserve_appointments, check)
                     break
-                _, affected, conflict = min(conflicts, key=lambda item: item[0])
+                _, affected, conflict = select(conflicts, key=lambda item: item[0])
                 rid = conflict.request_id
                 if rid in full.fixed_choices:
                     failure = conflict
                     break
                 repairs.append(conflict)
-                encoding = encoding.without(rid)
+                remove = encoding.without if detail is None else detail.detail("repair_remove", encoding.without)
+                encoding = remove(rid)
                 # Deleting an entire request cannot join previously independent
                 # groups. Rebuild only its group; a deleted bridge can split it.
                 remaining = ((i, t) for i, t in zip(affected.positions, affected.tasks) if t.request_id != rid)
-                children = TaskGraph.from_tasks(remaining, (r for r in affected.request_ids if r != rid),
-                                                check).components
+                children = rebuild(remaining, (r for r in affected.request_ids if r != rid), check).components
                 components = tuple(c for c in components if c is not affected) + children
             if failure is not None:
                 empty = frozen({})

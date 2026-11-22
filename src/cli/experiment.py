@@ -1,5 +1,6 @@
 """P6 manual experiment entry point, shared by micro and official demand."""
 import argparse
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from hashlib import sha256
 import json
@@ -9,6 +10,7 @@ from types import MappingProxyType
 from src.common.config import load_config
 from src.data.experiment import inspect_sample_counts, official_inputs, place_fleet, sample_envelopes
 from src.data.micro import COVERAGE_SECONDS, DEMAND, micro_envelopes, micro_network
+from src.evaluation.profiling import ProfileConfig
 from src.m1.config import M1Config
 from src.m3.config import M3Config
 from src.m4.halns import M4Config
@@ -94,6 +96,9 @@ def resolve(args):
 
 def simulate(args):
     config = resolve(args)
+    profile_config = ProfileConfig.from_config(config)
+    if profile_config.enabled:
+        config["profiling"] = asdict(profile_config)
     experiment, settings = config["experiment"], config["simulation"]
     origin, start, end = (datetime.fromisoformat(settings[k])
                           for k in ("warmup_start", "evaluation_start", "evaluation_end_exclusive"))
@@ -118,13 +123,16 @@ def simulate(args):
                 validator_enabled=config["validation"]["schedule_validator_enabled"],
                 method_deviations=["D002", "D007", "D011", "D012", "D014"])
     report = None
+    if profile_config.enabled:
+        meta["run_class"] = "PROFILING"
     sim = None
     phase = "initialization"
     try:
         if not args.dry_run:
             from src.evaluation.outputs import RunOutput
             report = RunOutput(config["reporting"]["output_root"], config, meta)
-            print(f"Run directory: {report.path.resolve()}", flush=True)
+            label = "PROFILING " if profile_config.enabled else ""
+            print(f"{label}Run directory: {report.path.resolve()}", flush=True)
         if tiny:
             coverage_end = COVERAGE_SECONDS
             meta.update(input_counts={"synthetic": len(DEMAND)},
@@ -161,7 +169,8 @@ def simulate(args):
         phase = "dispatch"
         final = run_rolling(sim, network, arrivals, eval_start=eval_start, eval_end=eval_end,
                             coverage_end=coverage_end, seed=seed, batch_seconds=interval, reporter=report,
-                            planning_network=planning, failure_dir=report.path / "errors", **modules)
+                            planning_network=planning, failure_dir=report.path / "errors",
+                            profile_run=report.profile_run, **modules)
         phase = "final_audit"
         report.complete(final)
         return 0

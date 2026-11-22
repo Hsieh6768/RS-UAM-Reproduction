@@ -69,6 +69,17 @@ python -m src.cli.main simulate --config configs/debug_10min.yaml --fleet-size 5
 ```
 目标：真实曼哈顿路网、22:00预热衔接、评价10分钟窗口。**说明：若配置含两小时真实预热，则总模拟窗口长度大于10分钟。**
 
+**E10 性能诊断（PROFILING，用户手动启动）**
+
+在工程根目录的 PyCharm Terminal 执行：
+
+```powershell
+conda activate ridesharing
+python -u -m src.cli.main simulate --config configs/debug_10min_profile.yaml --fleet-size 50 --variant rs_uam --seed 101
+```
+
+只检查配置时，在命令末尾添加 `--dry-run`。该配置继承 E10 的两小时预热、10 秒 M4 墙钟预算与最终独立校验。打开终端打印的新 run 目录，先看 `manifest.json` 中的 `profiling_counts`，再按 `batch` 关联 `profiling.jsonl` 与 `batches.csv`。采样开销会影响墙钟截止点，固定种子下仍可能出现不同的完成候选数与服务结果。采样参数及读数示例见 [P6 性能诊断实施报告](P6_PROFILING_IMPLEMENTATION_REPORT.md)。
+
 **E11 — 30分钟调试窗口**
 ```powershell
 python -m src.cli.main simulate --config configs/debug_30min.yaml --fleet-size 50 --variant rs_uam --seed 101

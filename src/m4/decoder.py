@@ -88,7 +88,7 @@ class FullDecoder:
     """One evaluator per frozen P1 batch/M1 catalog/M3 search and scoring policy."""
 
     def __init__(self, road, snapshot, plans_by_request, candidates, *, beta=.7, delta=100,
-                 failure_dir="outputs/p4a_failures", remaining_sequence=None):
+                 failure_dir="outputs/p4a_failures", remaining_sequence=None, profile=None):
         if (snapshot.graph_version != road.version or (snapshot.time, snapshot.version) !=
                 (candidates.snapshot_time, candidates.snapshot_version)):
             raise ValueError("Stale road network or sparse batch candidates")
@@ -108,11 +108,13 @@ class FullDecoder:
         self.catalog = frozen(self.catalog)
         self.rows = frozen({key: tuple(values) for key, values in candidates.by_leg.items()})
         try:
-            chains, baseline, appointments = prepare_baseline(snapshot, candidates, road, remaining_sequence)
+            prepare = prepare_baseline if profile is None else profile.timer("s0_prepare", prepare_baseline)
+            chains, baseline, appointments = prepare(snapshot, candidates, road, remaining_sequence)
             self.fixed_chains = frozen(chains)
             self.fixed_choices = baseline.choices
             self.appointments = frozen(appointments)
-            self.safe_baseline = self._decode(baseline, preserve_appointments=True)
+            replay = self._decode if profile is None else profile.timer("s0_decode", self._decode)
+            self.safe_baseline = replay(baseline, preserve_appointments=True)
             if not self.safe_baseline.feasible:
                 if remaining_sequence is None and missing_shared_order(chains, appointments):
                     raise BaselineOrderRequired(f"Partial P1 appointments; supply remaining_sequence: "
@@ -164,18 +166,21 @@ class FullDecoder:
         if preserve_appointments and encoding != self.safe_baseline.encoding:
             raise EncodingError("Original appointment replay requires the safe baseline encoding")
 
-    def decode(self, encoding: Encoding, *, preserve_appointments=False, checkpoint=None) -> DecodedSchedule:
+    def decode(self, encoding: Encoding, *, preserve_appointments=False, checkpoint=None, detail=None) -> DecodedSchedule:
         """Evaluate a trial, or replay this batch's safe encoding at its original appointments."""
         self._check_input(encoding, preserve_appointments)
-        return self._decode(encoding, preserve_appointments, checkpoint or _unchecked)
+        return self._decode(encoding, preserve_appointments, checkpoint or _unchecked, detail=detail)
 
-    def _decode(self, encoding, preserve_appointments, checkpoint=_unchecked):
+    def _decode(self, encoding, preserve_appointments, checkpoint=_unchecked, detail=None):
         wall, cpu = perf_counter(), process_time()
         repairs = []
         while True:
             try:
                 checkpoint()
-                result = self._attempt(encoding, preserve_appointments, checkpoint)
+                attempt = self._attempt
+                if detail is not None:
+                    attempt = detail.detail("repair_full_decode" if repairs else "full_decode", attempt)
+                result = attempt(encoding, preserve_appointments, checkpoint)
                 failure = None
                 break
             except _Infeasible as exc:
@@ -185,7 +190,8 @@ class FullDecoder:
                     result = ((), empty, empty, empty, empty, empty, None, None, None)
                     break
                 repairs.append(failure)
-                encoding = encoding.without(failure.request_id)
+                remove = encoding.without if detail is None else detail.detail("repair_remove", encoding.without)
+                encoding = remove(failure.request_id)
         tasks, cars, nodes, flights, trips, ends, f1, f2, score = result
         checkpoint()
         return DecodedSchedule(self.batch_key, self.snapshot.time, self.snapshot.version, preserve_appointments, encoding,

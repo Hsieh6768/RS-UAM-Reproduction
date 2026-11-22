@@ -97,7 +97,15 @@ is_in_eval,final_counted_success,unserved_reason`。
 - M4 搜索计时截止于 `SearchBudget.finish()`；另有含可选终检的 M4 调用耗时。M3/M5、验证器、事件推进均计入整批时长。
 - 超时检查协作式，可能少量越界，必须报告超时批次和最大幅度。
 
-## 8. 验收状态机
+## 8. 可选 PROFILING 产物
+
+启用 `profiling.enabled` 的运行在 manifest 和完整报告中标记 `PROFILING`，沿用原有运行状态机。额外的 `profiling.jsonl` 每个采样批至多一行，包含批次号、阶段计时、七算子调用数、候选与采样截断数、有限请求证据和 M5 配额/首个阻塞源格。按 `batch` 与原始批次 CSV 关联。关闭诊断的运行沿用原输出文件和字段。
+
+阶段使用纳秒。读成本分解时使用 `stages.*.exclusive_ns`；`inclusive_ns` 含嵌套子阶段。明细属于系统抽样，覆盖量随上限和预算而变。请求的 `has_binding_options` 表示存在一个方案，其每个正式段均有至少一个候选；`retained_feasible` 统计该请求实际留在完整合法候选中的次数。每批 `budget_exhausted` 与请求证据并列解读。
+
+完整运行会将该文件纳入 SHA256 清单。完成、故障或 Ctrl+C 后，manifest 中的 `profiling_counts` 给出已写字节/批数、因整文件上限被截断的采样批数、首次截断批号，以及构造记录和写盘的额外墙钟纳秒。文件只保留完整行。所有字段、采样分母和时钟边界见 [实施报告](P6_PROFILING_IMPLEMENTATION_REPORT.md)。
+
+## 9. 验收状态机
 
 `RUNNING -> COMPLETE`；
 异常分支：`RUNNING -> FAILED`，用户停止：`RUNNING -> INTERRUPTED`。

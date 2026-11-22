@@ -1,0 +1,4 @@
+phase,batches,budget_exhausted,timed_out_using_s0,candidates_started,candidates_completed,completed_per_search_second,repairs_per_completed,mean_candidates_per_batch,p50_candidates_per_batch,sampled_batches,sampled_candidates,candidate_cap_reached,candidate_cap_truncating,candidates_truncated,detail_cap_reached,detail_cap_truncating,details_truncated
+EVALUATION,60,60,26,3187,3127,5.211103148394442,56.52222577550368,52.11666666666667,47.0,6,15,0,0,0,4,4,1386
+TAIL,287,180,79,230380,230201,115.52884434373513,2.5280776365002757,802.0940766550523,91.0,29,130,10,9,601,13,13,3651
+WARMUP,720,707,249,81308,80602,11.331346353638116,29.2154040842659,111.94722222222222,57.0,72,176,3,3,78,47,46,14712

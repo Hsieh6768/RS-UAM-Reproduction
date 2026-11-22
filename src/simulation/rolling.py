@@ -152,7 +152,7 @@ def _solver_metrics(result, plan):
 
 def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, batch_seconds,
                 seed, m1_config, m3_config, m4_config, m5_config, reporter, failure_dir,
-                validator_enabled=None, planning_network=None):
+                validator_enabled=None, planning_network=None, profile_run=None):
     """Run P1–P5 through demand closure. The experiment owner handles files/errors.
 
     Ticks are relative to warmup start. `coverage_end` is the exclusive end of
@@ -198,16 +198,26 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
         if flights.extend(sim, last):
             before = sim.batch_snapshot()
         sparse = searcher.search(before, plans)
+        profile = profile_run.begin(batch) if profile_run is not None else None
+        if profile is not None:
+            profile.measure("request_sampling", profile.select_requests, before, plans, sparse)
         m4_start_wall, m4_start_cpu = perf_counter(), process_time()
-        result = halns.solve(before, plans, sparse, rng=rng, previous=sim.search_state, failure_dir=failure_dir)
+        result = halns.solve(before, plans, sparse, rng=rng, previous=sim.search_state, failure_dir=failure_dir,
+                             profile=profile)
         m4_call_wall_ms = 1000 * (perf_counter() - m4_start_wall)
         m4_call_cpu_ms = 1000 * (process_time() - m4_start_cpu)
-        commit_passengers(sim, before, plans, result)
+        if profile is None:
+            commit_passengers(sim, before, plans, result)
+        else:
+            profile.measure("passenger_commit", commit_passengers, sim, before, plans, result)
         post = sim.batch_snapshot()
         idle, _ = _fleet(post)
         unmet = () if source.closed else (rid for rid, req in post.requests.items() if req.status == "WAITING")
         plan = rebalancer.propose(post, unmet, idle, failure_dir=failure_dir)
-        moved = commit_rebalance_plan(sim, post, plan)
+        if profile is None:
+            moved = commit_rebalance_plan(sim, post, plan)
+        else:
+            moved = profile.measure("rebalance_commit", commit_rebalance_plan, sim, post, plan)
         after = sim.batch_snapshot()
         counts = _count_requests(after)
         _, fleet = _fleet(after)
@@ -236,6 +246,8 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
                        task_records=len(after.tasks), flight_records=len(after.flights))
         metrics["batch_wall_ms"] = (perf_counter() - started) * 1000
         metrics["batch_wall_budget_exceeded"] = metrics["batch_wall_ms"] > 1000 * m4_config.wall_budget_seconds
+        if profile is not None:
+            profile_run.write(profile, after, result, plan, moved)
         reporter.batch(metrics)
         previous_counts = counts
         if source.closed and not (counts["pending"] or counts["accepted_incomplete"]

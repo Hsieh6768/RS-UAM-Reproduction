@@ -1,0 +1,156 @@
+{
+  "network_sha256": "7cf1ed8eeae50a353dd993d43eafcc769fd80715fdbeb471c96a23d23939b8b9",
+  "scc_count": 1905,
+  "largest_size": 16808,
+  "region_scc_counts": {
+    "core": 1,
+    "upstream": 1009,
+    "downstream": 882,
+    "other": 13
+  },
+  "region_node_counts": {
+    "core": 16808,
+    "upstream": 1010,
+    "downstream": 882,
+    "other": 13
+  },
+  "baseline": {
+    "run_id": "20261121T095345Z-f4ee53eccb874218bbe3fa3ced6fcb2f",
+    "positions": {
+      "NODE": 14958,
+      "EDGE_SAME": 37720,
+      "EDGE_CROSS": 22
+    },
+    "core_available_fleet_at_batches": {
+      "43": 7,
+      "44": 657,
+      "45": 68,
+      "46": 322
+    },
+    "core_last_completed_fleet_at_batches": {
+      "43": 7,
+      "44": 656,
+      "45": 69,
+      "46": 322
+    },
+    "batch_count": 1054,
+    "m5_by_phase": {
+      "WARMUP": {
+        "failure": 713,
+        "with_topologically_blocked_vehicle": 713,
+        "with_initial_limited_blocked": 713,
+        "with_other_blocked": 275
+      },
+      "EVALUATION": {
+        "failure": 60,
+        "with_topologically_blocked_vehicle": 60,
+        "with_initial_limited_blocked": 60,
+        "with_other_blocked": 60
+      },
+      "TAIL": {
+        "failure": 158,
+        "with_topologically_blocked_vehicle": 158,
+        "with_initial_limited_blocked": 158,
+        "with_other_blocked": 114
+      }
+    },
+    "m5_topologically_blocked_vehicle_sets": {
+      "V00027": 266,
+      "V00030": 54,
+      "V00021,V00022": 162,
+      "V00023,V00027": 449
+    },
+    "requests": 3167,
+    "crossings": 99,
+    "road_purpose_at_crossings": {
+      "PICKUP": 59,
+      "LOADED": 40
+    },
+    "edges": 58413,
+    "exits": {
+      "V00014": 3793,
+      "V00023": 4363
+    },
+    "initial_regions": {
+      "upstream": 3,
+      "core": 43,
+      "downstream": 4
+    },
+    "final_regions": {
+      "core": 44,
+      "downstream": 6
+    },
+    "request_od_regions": {
+      "core->core": 3155,
+      "upstream->core": 10,
+      "core->downstream": 2
+    }
+  },
+  "profiling": {
+    "run_id": "20261121T151519Z-1ccd3331b2fa425e99cbfafde128809e",
+    "positions": {
+      "NODE": 14954,
+      "EDGE_SAME": 38376,
+      "EDGE_CROSS": 20
+    },
+    "core_available_fleet_at_batches": {
+      "43": 7,
+      "44": 24,
+      "45": 725,
+      "46": 311
+    },
+    "core_last_completed_fleet_at_batches": {
+      "43": 7,
+      "44": 24,
+      "45": 725,
+      "46": 311
+    },
+    "batch_count": 1067,
+    "m5_by_phase": {
+      "WARMUP": {
+        "failure": 713,
+        "with_topologically_blocked_vehicle": 713,
+        "with_initial_limited_blocked": 713
+      },
+      "EVALUATION": {
+        "failure": 60,
+        "with_topologically_blocked_vehicle": 60,
+        "with_initial_limited_blocked": 60
+      },
+      "TAIL": {
+        "failure": 165,
+        "with_topologically_blocked_vehicle": 165,
+        "with_initial_limited_blocked": 165
+      }
+    },
+    "m5_topologically_blocked_vehicle_sets": {
+      "V00027": 522,
+      "V00021,V00022": 349,
+      "V00030": 67
+    },
+    "requests": 3193,
+    "crossings": 94,
+    "road_purpose_at_crossings": {
+      "PICKUP": 59,
+      "LOADED": 35
+    },
+    "edges": 60139,
+    "exits": {
+      "V00012": 3694
+    },
+    "initial_regions": {
+      "upstream": 3,
+      "core": 43,
+      "downstream": 4
+    },
+    "final_regions": {
+      "core": 45,
+      "downstream": 5
+    },
+    "request_od_regions": {
+      "core->core": 3181,
+      "upstream->core": 10,
+      "core->downstream": 2
+    }
+  }
+}

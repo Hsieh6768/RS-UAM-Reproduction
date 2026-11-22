@@ -1,0 +1,9 @@
+extends: debug_10min.yaml
+profiling:
+  enabled: true
+  batch_every: 10
+  candidate_every: 32
+  max_candidates_per_batch: 8
+  max_detail_spans_per_batch: 512
+  max_requests_per_batch: 3
+  max_output_bytes: 4194304

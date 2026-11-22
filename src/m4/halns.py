@@ -161,7 +161,7 @@ class M4HALNS:
 
     def solve(self, snapshot, plans, candidates, *, rng, previous=None, remaining_sequence=None,
               failure_dir="outputs/p4b_failures", wall_clock=perf_counter, cpu_clock=process_time,
-              wall_deadline=None):
+              wall_deadline=None, profile=None):
         """Evaluate one frozen batch. The caller owns any subsequent commit."""
         cfg = self.config
         budget = SearchBudget(wall_budget_seconds=cfg.wall_budget_seconds, budget_clock=cfg.budget_clock,
@@ -172,7 +172,10 @@ class M4HALNS:
             if remaining_sequence is not None:
                 raise ValueError("Pass previous search state or an explicit remaining sequence")
             try:
-                remaining_sequence = previous.remaining_sequence(snapshot)
+                inherit = previous.remaining_sequence
+                if profile is not None:
+                    inherit = profile.timer("inherit_sequence", inherit)
+                remaining_sequence = inherit(snapshot)
             except SnapshotError as exc:
                 exc.failure_path = record_failure(failure_dir, snapshot, exc)
                 raise
@@ -181,8 +184,9 @@ class M4HALNS:
         # S0 is mandatory: charge its actual duration, even if proving S0 alone
         # overruns the deadline. There is no previously scored fallback in this batch.
         try:
-            full = FullDecoder(self.road, snapshot, plans, candidates, beta=cfg.beta, delta=cfg.delta,
-                               failure_dir=failure_dir, remaining_sequence=remaining_sequence)
+            initialize = FullDecoder if profile is None else profile.timer("s0_setup", FullDecoder)
+            full = initialize(self.road, snapshot, plans, candidates, beta=cfg.beta, delta=cfg.delta,
+                              failure_dir=failure_dir, remaining_sequence=remaining_sequence, profile=profile)
         except EncodingError as exc:
             exc.failure_path = record_failure(failure_dir, snapshot, exc)
             raise
@@ -208,11 +212,18 @@ class M4HALNS:
         # candidate changes the encoding (including deletion during repair).
         scope_encoding, fragments = None, ()
 
-        def evaluate(encoding):
+        def evaluate(encoding, detailed=False, stage="candidate_decode"):
             nonlocal completed, invalid, evaluated_components, reused_components
-            trial = evaluator.decode(encoding, checkpoint=budget.checkpoint)
+            if profile is not None:
+                profile.attempt(encoding)
+            if detailed:
+                trial = profile.measure(stage, evaluator.decode, encoding, checkpoint=budget.checkpoint, detail=profile)
+            else:
+                trial = evaluator.decode(encoding, checkpoint=budget.checkpoint)
             budget.checkpoint()
             completed += 1
+            if profile is not None:
+                profile.completed(encoding, trial)
             repairs.update(r.reason for r in trial.repairs)
             if trial.failure:
                 invalid += 1
@@ -227,7 +238,12 @@ class M4HALNS:
         try:
             budget.checkpoint()
             started += 1
-            initial = evaluate(full.initial_encoding(rng, checkpoint=budget.checkpoint))
+            if profile is None:
+                initial = evaluate(full.initial_encoding(rng, checkpoint=budget.checkpoint))
+            else:
+                profile.sampled_candidates += 1
+                encoding = profile.measure("s1_build", full.initial_encoding, rng, checkpoint=budget.checkpoint)
+                initial = evaluate(encoding, True, "s1_decode")
             if initial.feasible:
                 current = initial
                 if initial.better_than(best):
@@ -239,19 +255,28 @@ class M4HALNS:
                 draws.append(op)
                 for _ in range(cfg.inner_loops):
                     budget.checkpoint()
+                    detailed = profile is not None and profile.samples_candidate(started + 1)
                     if op in ("insert", "cut", "swap", "reverse") and scope_encoding != current.encoding:
                         if cfg.noD:
                             fragments = (range(len(current.encoding.sequence)),)
                         else:
-                            graph = TaskGraph.build(full, current.encoding, checkpoint=budget.checkpoint)
+                            build = profile.detail("operator_scope_graph", TaskGraph.build) if detailed else TaskGraph.build
+                            graph = build(full, current.encoding, checkpoint=budget.checkpoint)
                             fragments = tuple(c.positions for c in graph.components)
                         scope_encoding = current.encoding
                     budget.checkpoint()
                     started += 1
-                    encoding = apply_operator(op, full, current.encoding, rng, fragments=fragments,
-                                              m=cfg.exchange_request_count, checkpoint=budget.checkpoint)
+                    generate = apply_operator
+                    if profile is not None:
+                        profile.operator_calls[op] += 1
+                        if detailed:
+                            profile.sampled_candidates += 1
+                        if detailed or profile.operator_calls[op] == 1:
+                            generate = profile.timer("operator_" + op, apply_operator)
+                    encoding = generate(op, full, current.encoding, rng, fragments=fragments,
+                                        m=cfg.exchange_request_count, checkpoint=budget.checkpoint)
                     budget.checkpoint()
-                    trial = evaluate(encoding)
+                    trial = evaluate(encoding, detailed)
                     if accept_candidate(trial.v, current.v, temperature, rng,
                                         feasible=trial.feasible, annealing=not cfg.noS):
                         worse += int(trial.v < current.v)
@@ -274,7 +299,11 @@ class M4HALNS:
         validation_wall_s = 0.
         if cfg.validate_final:
             start = wall_clock()
-            ScheduleValidator(full, failure_dir=failure_dir).validate(best)
+            validate = ScheduleValidator(full, failure_dir=failure_dir).validate
+            if profile is None:
+                validate(best)
+            else:
+                profile.measure("validator", validate, best)
             validation_wall_s = wall_clock() - start
         return SearchResult(best, current, safe, initial_scores, state, stats, timing, cfg, validation_wall_s,
                             snapshot, full.catalog, full.rows)

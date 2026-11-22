@@ -1,0 +1,13 @@
+outcome,request_cohort,final_run_state,budget_exhausted,observations,distinct_requests
+accepted,WARMUP,COMPLETED,False,3,3
+accepted,WARMUP,COMPLETED,True,2,2
+feasible_trial_not_selected,WARMUP,EXPIRED_UNSERVED,True,1,1
+interrupted_attempt,EVALUATION,EXPIRED_UNSERVED,True,15,15
+interrupted_attempt,TAIL,EXPIRED_UNSERVED,True,34,34
+interrupted_attempt,WARMUP,EXPIRED_UNSERVED,True,175,170
+no_complete_binding_options,EVALUATION,EXPIRED_UNSERVED,True,2,2
+no_complete_binding_options,TAIL,EXPIRED_UNSERVED,True,5,5
+no_complete_binding_options,WARMUP,EXPIRED_UNSERVED,True,31,31
+removed_in_observed_trials,TAIL,EXPIRED_UNSERVED,True,5,5
+removed_in_observed_trials,WARMUP,EXPIRED_UNSERVED,False,3,3
+removed_in_observed_trials,WARMUP,EXPIRED_UNSERVED,True,9,9
