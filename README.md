@@ -58,3 +58,5 @@ P2 的静态 M1 规划入口为 `M1Planner.generate(request, immutable_network)`
 大型原始数据和生成结果不提交 Git。已确认的静态航空拓扑建议纳入版本管理。
 
 论文 PDF 位于 `references/paper.pdf`。
+
+P6-NET 新增用户批准的可选数据实例 `scc100`。历史 E10 使用原 D011 输入。新实例使用最大强连通分量、双端 100 m 吸附和相同的 5% 抽样协议。新数据生成、只读核验和手动 E10 命令见 [P6-NET 交付报告](docs/P6_NET_SCC100_REPORT.md)。

@@ -122,7 +122,7 @@ def summarize_graph(graph):
         "largest_strong_nodes": len(largest),
         "largest_strong_edges": largest_edges,
         "largest_strong_node_fraction": len(largest) / len(graph),
-        "largest_strong_edge_fraction": largest_edges / graph.number_of_edges(),
+        "largest_strong_edge_fraction": largest_edges / len(lengths) if len(lengths) else None,
         "edge_length_m": distribution(lengths),
     }, components, largest
 

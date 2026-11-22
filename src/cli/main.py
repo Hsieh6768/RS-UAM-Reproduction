@@ -17,12 +17,25 @@ def main(argv=None):
         if name == "validate-inputs":
             subparser.add_argument("--dry-run", action="store_true", help="Input validation is always read-only")
     add_simulate(commands)
+    audit = commands.add_parser("audit-scc100", help="Read-only full SCC100 data gate after manual preparation")
+    audit.add_argument("--config", type=Path, default=Path("configs/debug_10min_scc100.yaml"))
     args = parser.parse_args(argv)
     if Path(sys.prefix).name != "ridesharing" or sys.version_info[:3] != (3, 9, 25):
         parser.error(f"Requires ridesharing / Python 3.9.25 (current: {sys.executable})")
     try:
         if args.command == "simulate":
             return simulate(args)
+        if args.command == "audit-scc100":
+            from contextlib import redirect_stdout
+            from io import StringIO
+            from src.data.scc100_audit import audit_scc100
+            result = audit_scc100(args.config)
+            preview = StringIO()
+            with redirect_stdout(preview):
+                simulate(parser.parse_args(["simulate", "--config", str(args.config), "--dry-run"]))
+            result["e10_dry_run"] = json.loads(preview.getvalue())
+            print(json.dumps(result, indent=2))
+            return int(result["status"] != "DATA_GATE PASS")
         if args.command == "validate-inputs":
             print(json.dumps(validate_inputs(load_config(args.config)), indent=2, ensure_ascii=True))
         elif args.command == "archive-inputs":
@@ -32,7 +45,8 @@ def main(argv=None):
         else:
             print(prepare_data(args.config))
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
-        print(f"{args.command}: {exc}", file=sys.stderr)
+        label = "DATA_GATE FAIL" if args.command == "audit-scc100" else args.command
+        print(f"{label}: {exc}", file=sys.stderr)
         return 1
     return 0
 

@@ -1,10 +1,8 @@
 """Per-run streaming files, terminal status and failure evidence for P6."""
 import csv
 import gzip
-import hashlib
 import json
 import platform
-import subprocess
 import sys
 import traceback
 from collections import Counter
@@ -19,7 +17,7 @@ from uuid import uuid4
 
 import yaml
 
-from src.data.sources import fingerprint
+from src.data.sources import code_identity, fingerprint
 from src.evaluation.audit import audit_world
 from src.evaluation.profiling import ProfileConfig, ProfileRun
 from src.evaluation.metrics import (
@@ -55,27 +53,6 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def _git(root, args):
-    try:
-        result = subprocess.run(["git", "--no-optional-locks", *args], cwd=root, capture_output=True,
-                                timeout=5, check=True)
-        return result.stdout.decode("utf-8", "replace").strip()
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-
-def _code_identity():
-    root = Path(__file__).resolve().parents[2]
-    # A commit alone does not identify the active implementation in a dirty worktree.
-    digest = hashlib.sha256()
-    for path in sorted((root / "src").rglob("*.py")):
-        digest.update(path.relative_to(root).as_posix().encode() + b"\0")
-        digest.update(bytes.fromhex(fingerprint(path)["sha256"]))
-    status = _git(root, ["status", "--porcelain"])
-    return {"code_commit": _git(root, ["rev-parse", "HEAD"]),
-            "dirty_tree": None if status is None else bool(status), "source_tree_sha256": digest.hexdigest()}
-
-
 class RunOutput:
     """One writer and one directory per invocation. COMPLETE is the last durable update."""
 
@@ -89,7 +66,7 @@ class RunOutput:
         config_file = self.path / "config.yaml"
         config_file.write_text(yaml.safe_dump(self.config, allow_unicode=True, sort_keys=False), encoding="utf-8")
         self.manifest = {
-            **_code_identity(), "run_id": run_id, "start_wall": _now(), "status": "RUNNING",
+            **code_identity(), "run_id": run_id, "start_wall": _now(), "status": "RUNNING",
             "python_version": platform.python_version(), "python_executable": sys.executable,
             "environment": Path(sys.prefix).name, "os": platform.platform(), "cpu_model": platform.processor(),
             "gurobi_version": version("gurobipy"), "configs_sha256": fingerprint(config_file)["sha256"],

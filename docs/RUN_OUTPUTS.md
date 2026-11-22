@@ -110,3 +110,7 @@ is_in_eval,final_counted_success,unserved_reason`。
 `RUNNING -> COMPLETE`；
 异常分支：`RUNNING -> FAILED`，用户停止：`RUNNING -> INTERRUPTED`。
 不可自动把FAILED当作“部分成功”合并进入统计均值。
+
+## P6-NET 输入身份
+
+新运行的正式输入清单记录 `dataset_variant`（`full` 或 `scc100`）、`road_policy`、`snap_max_distance_m`、道路节点/边数、两级 manifest、图与三期样本的 SHA256。初始车位和内容派生的 `road_graph_version` 随本次运行保存。历史 E10 的归档格式仍以当次 manifest 为准。SCC100 数据验收输出另含与历史输入的来源对照、完整清洗账本、站点旧新映射、参考值差异和新版 E10 预检。

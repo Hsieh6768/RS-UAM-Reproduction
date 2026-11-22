@@ -41,8 +41,8 @@ class AirNetwork:
 
     @classmethod
     def from_p0(cls, path, *, phase_s: int = 0, capacity: int = 4,
-                headway_s: Optional[int] = None) -> "AirNetwork":
-        """Read P0 air_audit.json using the approved full-graph station mapping.
+                headway_s: Optional[int] = None, station_field: str = "full_road_node") -> "AirNetwork":
+        """Read P0 air_audit.json using the selected instance's station mapping.
 
         An explicit headway verifies the configuration against every audited route.
         Phase is the time of service index zero in seconds from simulation start.
@@ -59,7 +59,7 @@ class AirNetwork:
                 raise ValueError(f"Invalid or duplicate vertiport ID {name!r}")
             if station["transfer_time_seconds"] != 0:
                 raise ValueError(f"Expected zero transfer time at {name}")
-            station_nodes[name] = _integer(station["full_road_node"], "full_road_node", 1)
+            station_nodes[name] = _integer(station[station_field], station_field, 1)
 
         routes = {}
         pairs = set()

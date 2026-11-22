@@ -187,3 +187,28 @@ Get-Content (Join-Path $run.FullName 'summary.md') -Encoding utf8
 | 再平衡 | `--no-m5`、`--m5` 或 `--variant noR`。noR 始终禁用新再平衡。 |
 | 配置与时间 | YAML 通过相对路径 `extends` 继承；时间为纽约当地时间。复制短窗配置可改 `simulation.evaluation_end_exclusive`，延续从该时刻读取连续 P0 时间轴。 |
 | 结果 | `--output-dir` 指定父目录；每次生成新子目录。完整字段及单位见 `docs/RUN_OUTPUTS.md`。 |
+
+## P6-NET 独立实例
+
+在已激活 `ridesharing` 的项目根目录手动运行。依次完成前一条并检查退出码 0 后再执行下一条。完整日志保存方式和失败处理见 [P6-NET 报告](P6_NET_SCC100_REPORT.md)。
+
+```powershell
+python -B -m src.cli.main prepare-network --config configs/p0_scc100.json
+python -B -m src.cli.main prepare-data --config configs/p0_scc100.json
+python -B -m src.cli.main audit-scc100 --config configs/debug_10min_scc100.yaml
+```
+
+有正式产物后，以下四条只读预检均可单独使用。
+
+```powershell
+python -B -m src.cli.main simulate --config configs/debug_10min_scc100.yaml --dry-run
+python -B -m src.cli.main simulate --config configs/debug_30min_scc100.yaml --dry-run
+python -B -m src.cli.main simulate --config configs/sensitivity_5h_scc100.yaml --dry-run
+python -B -m src.cli.main simulate --config configs/paper_main_scc100.yaml --dry-run
+```
+
+数据 Gate 通过后，用户可单独启动新版真实 E10。输出进入指定父目录下的唯一运行目录。
+
+```powershell
+python -B -m src.cli.main simulate --config configs/debug_10min_scc100.yaml --output-dir outputs/scc100
+```

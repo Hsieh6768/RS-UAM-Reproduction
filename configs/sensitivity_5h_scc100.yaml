@@ -1,0 +1,11 @@
+extends: sensitivity_5h.yaml
+inputs:
+  dataset_variant: scc100
+  processed_dir: data/processed/p0_scc100
+  prepared_road_graph_path: data/processed/p0_scc100/network/roads.json
+  prepared_request_manifest_path: data/processed/p0_scc100/requests/manifest.json
+data:
+  snap_max_distance_m: 100
+network:
+  road_graph_component_policy: largest_scc
+

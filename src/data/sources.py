@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -39,3 +40,24 @@ def write_json(path, value):
     with Path(path).open("x", encoding="utf-8", newline="\n") as output:
         json.dump(value, output, ensure_ascii=False, indent=2, allow_nan=False)
         output.write("\n")
+
+
+def _git(root, args):
+    try:
+        result = subprocess.run(["git", "--no-optional-locks", *args], cwd=root, capture_output=True,
+                                timeout=5, check=True)
+        return result.stdout.decode("utf-8", "replace").strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def code_identity():
+    root = Path(__file__).resolve().parents[2]
+    # A commit alone does not identify the active implementation in a dirty worktree.
+    digest = hashlib.sha256()
+    for path in sorted((root / "src").rglob("*.py")):
+        digest.update(path.relative_to(root).as_posix().encode() + b"\0")
+        digest.update(bytes.fromhex(fingerprint(path)["sha256"]))
+    status = _git(root, ["status", "--porcelain"])
+    return {"code_commit": _git(root, ["rev-parse", "HEAD"]),
+            "dirty_tree": None if status is None else bool(status), "source_tree_sha256": digest.hexdigest()}

@@ -123,6 +123,8 @@ def simulate(args):
                 validator_enabled=config["validation"]["schedule_validator_enabled"],
                 method_deviations=["D002", "D007", "D011", "D012", "D014"])
     report = None
+    if not tiny:
+        meta["dataset_variant"] = config["inputs"].get("dataset_variant", "full")
     if profile_config.enabled:
         meta["run_class"] = "PROFILING"
     sim = None
@@ -144,6 +146,8 @@ def simulate(args):
             paths, coverage, input_meta = official_inputs(config, verify=not args.dry_run)
             coverage_end = int((coverage - origin).total_seconds())
             meta.update(input_meta)
+            if input_meta.get("dataset_variant") == "scc100":
+                meta["method_deviations"].append("D016")
         if eval_end > coverage_end:
             raise ValueError("Evaluation exceeds available demand coverage")
         if args.dry_run:

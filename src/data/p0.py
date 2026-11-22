@@ -12,6 +12,7 @@ from shapely.geometry import mapping, shape
 from src.common.config import load_config
 from src.common.geo import METERS_PER_MILE, mph_to_mps
 from src.data.sources import archive_file, fingerprint, write_json
+from src.data.scc100 import is_scc100, publish_directory, variant_provenance, write_scc_requests
 from src.data.tlc import COLUMNS, COORDINATES, PICKUP, PRIMARY_REASONS, audit_tlc, stratified_sample
 from src.network.air import audit_air
 from src.network.pbf import inspect_header, read_snapshot
@@ -72,6 +73,8 @@ def validate_inputs(config):
 
 
 def archive_inputs(config):
+    if is_scc100(config):
+        raise ValueError("SCC100 preparation reads the existing P0 archive")
     evidence = validate_inputs(config)
     sources = evidence["sources"]
     manifest = Path(config["source_manifest"])
@@ -132,15 +135,24 @@ def _write_artifact_manifest(directory, details):
 
 def prepare_network(config_path):
     config = load_config(config_path)
-    paths = _archive_paths(config)
+    cropped = is_scc100(config)
     settings = config["network"]
-    if settings["road_profile"] != "p0_osmnx_drive_unsimplified" or (
-        settings["road_component_policy"] != "compare_full_and_largest_strong"
-    ):
+    if settings["road_profile"] != "p0_osmnx_drive_unsimplified":
         raise ValueError("Unsupported P0 road profile or component policy")
-    output = Path(config["processed_dir"]) / "p0_network"
+    output = Path(config["processed_dir"]) / ("network" if cropped else "p0_network")
     if output.exists():
         raise FileExistsError(f"Network artifact directory already exists: {output}")
+    paths = _archive_paths(config)
+    if cropped:
+        with publish_directory(output) as staging:
+            _build_network(config_path, config, paths, staging, cropped=True)
+    else:
+        _build_network(config_path, config, paths, output, cropped=False)
+    return output
+
+
+def _build_network(config_path, config, paths, output, *, cropped):
+    settings = config["network"]
     relation = settings["manhattan_boundary_relation"]
     boundary = _boundary(paths["osm"], relation)
     print(f"P0: Manhattan relation {relation}; reading original PBF node IDs", flush=True)
@@ -162,7 +174,19 @@ def prepare_network(config_path):
             full_road_node=int(full_node[i]), full_snap_m=float(full_m[i]),
             largest_road_node=int(crop_node[i]), largest_snap_m=float(crop_m[i]),
         )
-    output.mkdir(parents=True)
+    if cropped:
+        full_stats = stats
+        graph = graph.subgraph(largest)
+        stats, _, _ = summarize_graph(graph)
+        stats["full_graph"] = full_stats
+        for station in air["stations"]:
+            station["road_node"] = station["largest_road_node"]
+            station["snap_m"] = station["largest_snap_m"]
+            station["remapped"] = station["road_node"] != station["full_road_node"]
+        if (air["stations_count"], air["directed_edges"]) != (10, 60):
+            raise ValueError("SCC100 requires the approved 10 vertiports and 60 directed routes")
+    else:
+        output.mkdir(parents=True)
     write_json(output / "boundary.geojson", {
         "type": "Feature", "properties": {"osm_relation_id": relation}, "geometry": mapping(boundary),
     })
@@ -183,10 +207,10 @@ def prepare_network(config_path):
     write_json(output / "air_audit.json", air)
     _write_artifact_manifest(output, {
         **_provenance(config_path), "source_manifest": fingerprint(Path(config["source_manifest"])),
-        "status": "P0_NETWORK_AUDIT",
+        **(variant_provenance(config) if cropped else {}),
+        "status": "SCC100_NETWORK" if cropped else "P0_NETWORK_AUDIT",
     })
     print(f"P0: {len(graph)} nodes, {graph.number_of_edges()} directed edges, {len(largest)} in largest SCC")
-    return output
 
 
 def _accounting(tlc, eligible, mapped, sampled, quotas):
@@ -216,9 +240,13 @@ def _accounting(tlc, eligible, mapped, sampled, quotas):
 
 def prepare_data(config_path):
     config = load_config(config_path)
-    paths = _archive_paths(config)
+    cropped = is_scc100(config)
     processed = Path(config["processed_dir"])
-    network = processed / "p0_network"
+    output = processed / ("requests" if cropped else "p0_requests")
+    if output.exists():
+        raise FileExistsError(f"Request artifact directory already exists: {output}")
+    paths = _archive_paths(config)
+    network = processed / ("network" if cropped else "p0_network")
     network_manifest = read_json(network / "manifest.json")
     if (
         network_manifest["source_manifest"] != fingerprint(Path(config["source_manifest"]))
@@ -228,9 +256,20 @@ def prepare_data(config_path):
     for name, expected in network_manifest["artifacts"].items():
         if fingerprint(network / name) != expected:
             raise ValueError(f"Network artifact checksum mismatch: {name}")
-    output = processed / "p0_requests"
-    if output.exists():
-        raise FileExistsError(f"Request artifact directory already exists: {output}")
+    if cropped:
+        if (network_manifest["status"] != "SCC100_NETWORK"
+                or network_manifest["p0_config"] != config
+                or network_manifest["dataset_variant"] != "scc100"):
+            raise ValueError("SCC100 network/config mismatch")
+        with publish_directory(output) as staging:
+            details = write_scc_requests(config, paths, network, staging)
+            _write_artifact_manifest(staging, {
+                **_provenance(config_path), **variant_provenance(config), **details,
+                "network_manifest": fingerprint(network / "manifest.json"),
+                "source_manifest": network_manifest["source_manifest"],
+                "status": "OFFICIAL_P0_INPUTS",
+            })
+        return output
     graph = read_road_graph(network / "roads.json")
     boundary = shape(read_json(network / "boundary.geojson")["geometry"])
     _, components, largest = summarize_graph(graph)
