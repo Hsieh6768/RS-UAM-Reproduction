@@ -87,6 +87,7 @@ class RunOutput:
         self.last_batch = {}
         self.totals = Counter()
         self.profile_run = ProfileRun(self.path, options) if options.enabled else None
+        self.diagnostic_run = None
 
     def update_manifest(self, fields):
         self.manifest.update(_plain(fields))
@@ -156,11 +157,27 @@ class RunOutput:
             summary["run_class"] = "PROFILING"
             self.manifest["profiling_counts"] = self.profile_run.counts()
             heading = "**PROFILING**\n\n"
+        if self.diagnostic_run is not None:
+            diagnosis = self.diagnostic_run.finish(snapshot)
+            summary.update(run_class="REQUEST_DIAGNOSTICS", request_diagnostic_status=diagnosis["status"],
+                           diagnostic_affects_wall_search=True, request_diagnostic_reason=diagnosis.get("reason"))
+            self.manifest["request_diagnostic_status"] = diagnosis["status"]
+            heading = (f"**REQUEST_DIAGNOSTICS · {diagnosis['status']}**\n\n"
+                       "诊断采集会影响墙钟预算内的 HALNS 搜索轨迹。\n\n")
+            if diagnosis["status"] != "PASS":
+                self._print(f"Request diagnostics INCOMPLETE: {diagnosis['reason']}, "
+                            f"first missing batch={diagnosis['first_missing_batch']}")
         (self.path / "summary.md").write_text(heading + report_markdown(summary, audit, perf), encoding="utf-8")
         _write_json(self.path / "summary.json", summary)
         self._log.close()
         checksums = {p.name: fingerprint(p) for p in sorted(self.path.iterdir())
                      if p.is_file() and p.name != "manifest.json"}
+        if self.diagnostic_run is not None:
+            names = ["selection.json", "audit.json"]
+            if self.diagnostic_run.coverage is not None:
+                names.append("basic_requests.json")
+            for name in names:
+                checksums[f"request_diagnostics/{name}"] = fingerprint(self.diagnostic_run.path / name)
         self.update_manifest({"status": "COMPLETE", "end_wall": _now(), "output_checksums": checksums})
         return summary
 
@@ -185,4 +202,8 @@ class RunOutput:
         _write_json(self.path / "audit.json", {"status": status, "cause": str(exception)})
         if self.profile_run is not None:
             self.manifest["profiling_counts"] = self.profile_run.counts()
+        if self.diagnostic_run is not None:
+            if self.diagnostic_run.audit is None or self.diagnostic_run.audit["status"] == "PASS":
+                self.diagnostic_run.finish(snapshot, interrupted=True)
+            self.manifest["request_diagnostic_status"] = "INCOMPLETE"
         self.update_manifest({"status": status, "end_wall": _now(), "last_successful_batch": last})

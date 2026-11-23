@@ -29,7 +29,7 @@ def search(sim, plans, rng, **settings):
 
 
 @pytest.mark.parametrize('no_sa', [False, True])
-def test_outer_block_rewards_end_current_and_retains_best(monkeypatch, no_sa):
+def test_outer_block_rewards_best_even_after_sa_backtracks(monkeypatch, no_sa):
     # Five real reachable cars with arrivals 0, 0, 100, 200, 200.
     # Dropoff times 10, 110, 210 give scores 69.95, 69.45, 68.95.
     sim = setup([(0, 1, 10), (2, 0, 100), (3, 0, 200)],
@@ -57,14 +57,50 @@ def test_outer_block_rewards_end_current_and_retains_best(monkeypatch, no_sa):
     if no_sa:
         assert explored == ['mid', 'near', 'near2', 'near2', 'near2']
         assert out.current_solution.encoding.choices['A'].resources == ('near2',)
-        assert out.stats.accepted_worse == 0 and out.stats.rewards == 1
-        assert out.state.scores[op] == pytest.approx(1.1)
+        assert out.stats.accepted_worse == 0
     else:
         assert explored == ['mid', 'near', 'near2', 'far', 'far2']
         assert out.current_solution.completion == {'A': 110}
         assert out.current_solution.v == pytest.approx(69.45)
-        assert out.stats.accepted_worse == 1 and out.stats.rewards == 0
-        assert out.state.scores[op] == 1.
+        assert out.stats.accepted_worse == 1
+    assert out.stats.rewards == 1
+    assert out.state.scores[op] == pytest.approx(1.1)
+
+
+@pytest.mark.parametrize('interrupt', [False, True])
+def test_outer_block_rewards_multiple_best_improvements_once_if_complete(monkeypatch, interrupt):
+    # S1 scores 69.45; the next two proposals score 69.70 and 69.95.
+    # The last proposal would lower current to 68.95 by SA.
+    sim = setup([(0, 1, 10), (2, 0, 100), (3, 0, 50), (4, 0, 200)],
+                [('near', 0, 4), ('mid', 2, 4), ('closer', 3, 4), ('far', 4, 4)])
+    plan = release(sim, 'A', [leg('car', 0, 1, 10)])
+    proposals = iter(('closer', 'near', 'far'))
+    wall = 0.
+
+    def propose(operator, decoder, current, rng, **kwargs):
+        nonlocal wall
+        car = next(proposals)
+        if car == 'far' and interrupt:
+            wall = 10.
+        return Encoding({'A': Choice(plan.plan_id, (car,))}, ('A', 'A'))
+
+    monkeypatch.setattr(halns, 'apply_operator', propose)
+    snapshot = sim.batch_snapshot()
+    catalog = {'A': (plan,)}
+    candidates = M3Searcher(sim.router).search(snapshot, catalog)
+    cfg = halns.M4Config(psi=0, outer_loops_per_request=1, inner_loops=3)
+    out = halns.M4HALNS(sim.router, cfg).solve(
+        snapshot, catalog, candidates, rng=AcceptanceRng(42), wall_clock=lambda: wall
+    )
+
+    op, = out.stats.operator_draws
+    assert out.best_solution.v == pytest.approx(69.95)
+    assert out.timing.timed_out is interrupt
+    assert out.stats.inner_completed == (2 if interrupt else 3)
+    assert out.stats.outer_completed == (0 if interrupt else 1)
+    assert out.stats.accepted_worse == (0 if interrupt else 1)
+    assert out.stats.rewards == (0 if interrupt else 1)
+    assert out.state.scores[op] == pytest.approx(1. if interrupt else 1.1)
 
 
 def test_low_scoring_feasible_s1_is_explored_but_empty_baseline_wins():

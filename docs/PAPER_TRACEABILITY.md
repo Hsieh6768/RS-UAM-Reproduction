@@ -22,12 +22,12 @@ Codex 处理信息时使用三种标签：
 | M3车辆筛选 | §5.2 Alg.3、式(21) | R-tree 可达圆外接矩形，最多2倍车容量 | 直线最近排序、当前空座不足不提前过滤、Type3保护 | PAPER+APPROVED |
 | M3航班 | §5.2 Alg.3 | 匹配起终点、起降窗口和剩余容量 | 当前航班座位对新请求可用、M4联合检查新占用 | PAPER+APPROVED |
 | M4结构 | §5.3 Alg.4 | 两层编码、解码、弱连通分量、算子、SA | 保留分解默认/完整对照/安全基础解 | PAPER+APPROVED |
-| 候选修复 | §5.3.2 | Type1/2删除对应请求后重解码，Type3使候选无效 | 候选删除不等于真实请求失效 | PAPER+APPROVED |
+| 候选修复 | §5.3.2、Alg.4 第 3/13/19/32 行 | Type1/2 删除对应请求后重解码，Type3 使候选无效 | A3 采用修复后的编码及对应分数作为搜索状态。真实请求状态由提交器维护 | PAPER+APPROVED |
 | 弱分量 | §5.3.3, Theorem1/Lemma1, Fig.6 | 资源/任务相关图、弱连通分量独立 | 同航班双向资源关联不当时间排序 | PAPER+APPROVED |
 | M4随机初始化 | §5.3.4 | Type3固定、其他选首个方案+随机运力/任务序列 | 安全基础解作为最优的下界/回退 | PAPER+APPROVED |
-| 算子评分 | §5.3.5式(24),Table3 | 7算子、theta/psi/omega、首批等分 | 跨批次保存评分+正数保护，m=1 | PAPER+APPROVED |
-| “first four”措辞 | §5.3.5 对 Table3 后说明 | “first four heuristic operations” 不作用 Type3 | 在不改Type3方案/运力前提下默认insert不直接选Type3；余算子序列重排仅已执行前缀以外 | INFERENCE+APPROVED，须测试 |
-| 模拟退火 | §5.3 Alg.4 | 使用SA但概率表达未给出 | 用当前解而不是best，exp(Δv/T)，内层T*=0.7 | INFERENCE+APPROVED |
+| 算子评分 | §5.3.5 式 (24)、Alg.4 第 7/23–25/35 行、Table 3–4 | 七算子、θ/ψ/ω、首批等分，区块入口记录历史 best | A1 每个完整外层按 `best_after > vold` 最多奖励一次。跨批保存权重，设正数下限，m=1 | PAPER+APPROVED |
+| Type3 算子范围 | §5.3.5、Table 3、Alg.4 第 10/15–21 行 | 正文写四个，分组只有三个方案/资源调整算子 | A4 认定为文字笔误。前三个算子保留 Type3 赋值，后四个可调整分量内 Type3 待执行标记。insert 抽样覆盖分量全部标记，由原解码和提交契约保护承诺 | INFERENCE+APPROVED，已验收 |
+| 模拟退火 | §5.3 Alg.4 | 使用 SA，概率表达未给出，内层降温 | A2 用 current 分数计算差值，非降分合法解直接接受，降分按 exp(Δv/T)。内层 T*=0.7 | PAPER+APPROVED |
 | M4预算 | §6.2, Table5 | 10秒/30秒 per batch system solving time | 工程先只限M4墙钟时间，同时记录总批次；不能声称严格复现论文整批预算 | PAPER+APPROVED DIFFERENCE |
 | M5 | §5.4 Alg.5、式(25–31) | 1km网格，大圆成本，三类供需模型 | 整数流落实到具体车辆，道路真实移动，可抢占再平衡 | PAPER+APPROVED |
 | TLC数据 | §6.1 | 2013-05-05至05-06 曼哈顿出租车，5%为35213；预热5/4 22:00 | 先必要清理，再按日期×小时抽5%；不为凑35213改口径 | PAPER+APPROVED |

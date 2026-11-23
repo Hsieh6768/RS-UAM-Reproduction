@@ -131,14 +131,20 @@ def _released_request(row, at, router, pickup, delay):
                    original_destination=(float(row["dropoff_longitude"]), float(row["dropoff_latitude"])))
 
 
-def sample_envelopes(paths, origin, router, pickup, delay):
+def sample_releases(paths, origin):
+    """Yield release ticks and source rows without constructing requests or routing."""
     for path in paths:
         with path.open(encoding="utf-8-sig", newline="") as stream:
             for row in csv.DictReader(stream):
                 time = datetime.fromisoformat(row["request_time_local"])
                 if time >= origin:
                     at = int((time - origin).total_seconds())
-                    yield at, row["request_id"], partial(_released_request, row, at, router, pickup, delay)
+                    yield at, row
+
+
+def sample_envelopes(paths, origin, router, pickup, delay):
+    for at, row in sample_releases(paths, origin):
+        yield at, row["request_id"], partial(_released_request, row, at, router, pickup, delay)
 
 
 def place_fleet(sim, size, seed, capacity):

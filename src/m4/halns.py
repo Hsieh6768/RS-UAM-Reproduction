@@ -161,7 +161,7 @@ class M4HALNS:
 
     def solve(self, snapshot, plans, candidates, *, rng, previous=None, remaining_sequence=None,
               failure_dir="outputs/p4b_failures", wall_clock=perf_counter, cpu_clock=process_time,
-              wall_deadline=None, profile=None):
+              wall_deadline=None, profile=None, diagnostic=None, observe_candidate=None):
         """Evaluate one frozen batch. The caller owns any subsequent commit."""
         cfg = self.config
         budget = SearchBudget(wall_budget_seconds=cfg.wall_budget_seconds, budget_clock=cfg.budget_clock,
@@ -204,6 +204,8 @@ class M4HALNS:
         partitioned = None if cfg.noD else PartitionedDecoder(full)
         evaluator = partitioned or full
         safe = current = best = full.safe_baseline
+        if diagnostic is not None:
+            diagnostic.baseline(safe, remaining_sequence, initial_scores)
         started = completed = invalid = worse = inner = outer = rewards = 0
         evaluated_components = reused_components = 0
         repairs, failures, sizes = Counter(), Counter(), Counter()
@@ -211,15 +213,24 @@ class M4HALNS:
         # The current encoding determines the scopes. Reuse until an accepted
         # candidate changes the encoding (including deletion during repair).
         scope_encoding, fragments = None, ()
+        phase = "s1_start"
 
         def evaluate(encoding, detailed=False, stage="candidate_decode"):
-            nonlocal completed, invalid, evaluated_components, reused_components
+            nonlocal completed, invalid, evaluated_components, reused_components, phase
             if profile is not None:
                 profile.attempt(encoding)
             if detailed:
                 trial = profile.measure(stage, evaluator.decode, encoding, checkpoint=budget.checkpoint, detail=profile)
+            elif diagnostic is not None:
+                phase = "decode"
+                trial = evaluator.decode(encoding, checkpoint=budget.checkpoint, on_repair=diagnostic.repair)
             else:
                 trial = evaluator.decode(encoding, checkpoint=budget.checkpoint)
+            if observe_candidate is not None:
+                observe_candidate(trial)
+            if diagnostic is not None:
+                diagnostic.decoded(trial)
+                phase = "decoded_before_scoring"
             budget.checkpoint()
             completed += 1
             if profile is not None:
@@ -238,8 +249,14 @@ class M4HALNS:
         try:
             budget.checkpoint()
             started += 1
+            if diagnostic is not None:
+                diagnostic.start("s1")
+                phase = "s1_build"
             if profile is None:
-                initial = evaluate(full.initial_encoding(rng, checkpoint=budget.checkpoint))
+                encoding = full.initial_encoding(rng, checkpoint=budget.checkpoint)
+                if diagnostic is not None:
+                    diagnostic.encoded(encoding)
+                initial = evaluate(encoding)
             else:
                 profile.sampled_candidates += 1
                 encoding = profile.measure("s1_build", full.initial_encoding, rng, checkpoint=budget.checkpoint)
@@ -248,18 +265,23 @@ class M4HALNS:
                 current = initial
                 if initial.better_than(best):
                     best = initial
+            if diagnostic is not None:
+                diagnostic.considered(initial.feasible, best is initial)
             for _ in range(limit):
+                phase = "outer_iteration"
                 budget.checkpoint()
                 old_best = best.v
                 op = operators.choose(rng)
                 draws.append(op)
                 for _ in range(cfg.inner_loops):
+                    phase = "inner_iteration"
                     budget.checkpoint()
                     detailed = profile is not None and profile.samples_candidate(started + 1)
                     if op in ("insert", "cut", "swap", "reverse") and scope_encoding != current.encoding:
                         if cfg.noD:
                             fragments = (range(len(current.encoding.sequence)),)
                         else:
+                            phase = "operator_scope"
                             build = profile.detail("operator_scope_graph", TaskGraph.build) if detailed else TaskGraph.build
                             graph = build(full, current.encoding, checkpoint=budget.checkpoint)
                             fragments = tuple(c.positions for c in graph.components)
@@ -273,22 +295,40 @@ class M4HALNS:
                             profile.sampled_candidates += 1
                         if detailed or profile.operator_calls[op] == 1:
                             generate = profile.timer("operator_" + op, apply_operator)
-                    encoding = generate(op, full, current.encoding, rng, fragments=fragments,
-                                        m=cfg.exchange_request_count, checkpoint=budget.checkpoint)
+                    if diagnostic is not None:
+                        diagnostic.start(op)
+                        phase = "operator_build"
+                        encoding = generate(op, full, current.encoding, rng, fragments=fragments,
+                                            m=cfg.exchange_request_count, checkpoint=budget.checkpoint,
+                                            on_move=diagnostic.move)
+                        diagnostic.encoded(encoding)
+                        phase = "encoded_before_decode"
+                    else:
+                        encoding = generate(op, full, current.encoding, rng, fragments=fragments,
+                                            m=cfg.exchange_request_count, checkpoint=budget.checkpoint)
                     budget.checkpoint()
                     trial = evaluate(encoding, detailed)
-                    if accept_candidate(trial.v, current.v, temperature, rng,
-                                        feasible=trial.feasible, annealing=not cfg.noS):
+                    accepted = accept_candidate(trial.v, current.v, temperature, rng,
+                                                feasible=trial.feasible, annealing=not cfg.noS)
+                    if accepted:
                         worse += int(trial.v < current.v)
                         current = trial
                         if trial.better_than(best):
                             best = trial
+                    if diagnostic is not None:
+                        diagnostic.considered(accepted, best is trial)
                     temperature *= cfg.cooling_rate
                     inner += 1
-                rewards += operators.update(op, old_best, current.v, rng)
+                rewards += operators.update(op, old_best, best.v, rng)
                 outer += 1
-        except BudgetExpired:
-            pass
+        except BudgetExpired as exc:
+            if diagnostic is not None:
+                diagnostic.budget_stop = {
+                    "reason": str(exc), "phase": phase,
+                    "candidate_ordinal": started if phase in (
+                        "s1_build", "operator_build", "encoded_before_decode", "decode", "decoded_before_scoring"
+                    ) else None,
+                }
         state = SearchState(frozen(operators.scores), rng.getstate(),
                             tuple(t.task.task_id for t in best.tasks), best.encoding.choices,
                             snapshot.graph_version, snapshot.time)

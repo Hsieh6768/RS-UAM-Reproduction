@@ -80,11 +80,23 @@ python -u -m src.cli.main simulate --config configs/debug_10min_profile.yaml --f
 
 只检查配置时，在命令末尾添加 `--dry-run`。该配置继承 E10 的两小时预热、10 秒 M4 墙钟预算与最终独立校验。打开终端打印的新 run 目录，先看 `manifest.json` 中的 `profiling_counts`，再按 `batch` 关联 `profiling.jsonl` 与 `batches.csv`。采样开销会影响墙钟截止点，固定种子下仍可能出现不同的完成候选数与服务结果。采样参数及读数示例见 [P6 性能诊断实施报告](P6_PROFILING_IMPLEMENTATION_REPORT.md)。
 
-**E11 — 30分钟调试窗口**
+**E11-60 — 60 分钟 SCC100 调试窗口及分层请求诊断**
+
+E11-60 替代原 E11。评价时段为纽约当地 2013-05-05 00:00–01:00，延续两小时预热。全量评价请求有基础摘要，每个十分钟层固定种子选 30 个请求完整追踪至终态。预检返回目标、共享批次规划量、压缩空间估算与硬上限。真实运行由用户手动启动。
+
+```powershell
+conda activate ridesharing
+python -B -m src.cli.main simulate --config configs/debug_60min_scc100.yaml --dry-run
+python -B -u -m src.cli.main simulate --config configs/debug_60min_scc100.yaml --output-dir outputs/scc100/e11-60
+```
+
+查看运行目录内的 `request_diagnostics/audit.json`。请求诊断完整性为 `PASS` 时，全量批次和终态链均可读。输出格式、压缩限额及离线归因见 [E11-60 实施报告](P6_NET_E11_60_DIAGNOSTIC_IMPLEMENTATION.md)。
+
+**历史 E11 — 30 分钟调试窗口**
 ```powershell
 python -m src.cli.main simulate --config configs/debug_30min.yaml --fleet-size 50 --variant rs_uam --seed 101
 ```
-目标：更长滚动集成验证、跨段因果/承诺/定时航班，逐批独立验证。
+保留历史配置和边界回归，供复核 00:30 起的 TAIL 竞争与排空。
 
 **E12 — CPU时间预算对照（诊断，不算论文同预算对照）**
 ```powershell

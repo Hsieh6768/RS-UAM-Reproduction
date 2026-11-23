@@ -86,7 +86,7 @@ class PartitionedDecoder:
         return (tuple(ordered), frozen(cars), frozen(nodes), frozen(seats), trips, ends,
                 *objective(snap.requests, ends, full.beta, full.delta))
 
-    def decode(self, encoding, *, preserve_appointments=False, checkpoint=None, detail=None):
+    def decode(self, encoding, *, preserve_appointments=False, checkpoint=None, detail=None, on_repair=None):
         full, check = self.full, checkpoint or _unchecked
         wall, cpu = perf_counter(), process_time()
         full._check_input(encoding, preserve_appointments)
@@ -149,6 +149,8 @@ class PartitionedDecoder:
                 repairs.append(conflict)
                 remove = encoding.without if detail is None else detail.detail("repair_remove", encoding.without)
                 encoding = remove(rid)
+                if on_repair is not None:
+                    on_repair(conflict)
                 # Deleting an entire request cannot join previously independent
                 # groups. Rebuild only its group; a deleted bridge can split it.
                 remaining = ((i, t) for i, t in zip(affected.positions, affected.tasks) if t.request_id != rid)

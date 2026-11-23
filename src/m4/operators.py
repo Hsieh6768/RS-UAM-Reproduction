@@ -57,7 +57,7 @@ def _exchange_resources(rows, old, rng):
     return Choice(old.plan_id, tuple(reversed(selected)))
 
 
-def _exchange(name, decoder, encoding, rng, m, checkpoint):
+def _exchange(name, decoder, encoding, rng, m, checkpoint, on_move):
     choices = dict(encoding.choices)
     sequence = list(encoding.sequence)
     alternatives = {}
@@ -82,10 +82,12 @@ def _exchange(name, decoder, encoding, rng, m, checkpoint):
             _adjust_count(sequence, rid, _task_count(plan, choices[rid]), rng)
         else:
             choices[rid] = _exchange_resources(alternatives[rid], choices[rid], rng)
+        if on_move is not None:
+            on_move((rid,))
     return Encoding(choices, sequence)
 
 
-def _restart(decoder, rng, checkpoint):
+def _restart(decoder, rng, checkpoint, on_move):
     base = decoder.safe_baseline.encoding
     choices = dict(base.choices)
     sequence = list(base.sequence)
@@ -101,6 +103,8 @@ def _restart(decoder, rng, checkpoint):
             plan, rows = rng.choice(plans)
             choices[rid] = _draw_choice(plan, rows, rng)
             counts[rid] = _task_count(plan, choices[rid])
+            if on_move is not None:
+                on_move((rid,))
     # §5.3.4 samples outstanding requests uniformly at every draw. Swap out
     # an exhausted ID in constant time while preserving seeded reproducibility.
     active = list(counts)
@@ -117,31 +121,36 @@ def _restart(decoder, rng, checkpoint):
     return Encoding(choices, sequence)
 
 
-def _reorder(name, segment, fixed_choices, rng):
+def _reorder(name, segment, rng, on_move):
     if len(segment) < 2:
         return
     if name == "insert":
-        # D007: a committed occurrence can shift as a consequence of another
-        # request moving, but cannot itself be the removed/reinserted item.
-        eligible = [i for i, rid in enumerate(segment) if rid not in fixed_choices]
-        if eligible:
-            rid = segment.pop(rng.choice(eligible))
-            segment.insert(rng.randrange(len(segment) + 1), rid)
+        # A4: every pending occurrence is eligible. Decoding checks commitments.
+        rid = segment.pop(rng.choice(range(len(segment))))
+        segment.insert(rng.randrange(len(segment) + 1), rid)
+        if on_move is not None:
+            on_move((rid,))
         return
     first, last = sorted(rng.sample(range(len(segment)), 2))
     if first == last:
         return
     if name == "swap":
+        if on_move is not None:
+            on_move((segment[first], segment[last]))
         segment[first], segment[last] = segment[last], segment[first]
     elif name == "reverse":
+        if on_move is not None:
+            on_move(segment[first:last + 1])
         segment[first:last + 1] = reversed(segment[first:last + 1])
     else:  # cut: move the inclusive block to the end, keeping its order.
         block = segment[first:last + 1]
+        if on_move is not None:
+            on_move(block)
         del segment[first:last + 1]
         segment.extend(block)
 
 
-def apply_operator(name, decoder, encoding, rng, *, fragments, m=1, checkpoint=None):
+def apply_operator(name, decoder, encoding, rng, *, fragments, m=1, checkpoint=None, on_move=None):
     """Return a raw candidate. The caller decodes, repairs and tests acceptance.
 
     Each fragment contains its increasing positions in the current layer-two
@@ -153,15 +162,15 @@ def apply_operator(name, decoder, encoding, rng, *, fragments, m=1, checkpoint=N
     if type(m) is not int or m < 1:
         raise ValueError("Exchange request count m must be a positive integer")
     if name == "restart":
-        return _restart(decoder, rng, checkpoint)
+        return _restart(decoder, rng, checkpoint, on_move)
     if name in ("p_exchange", "v_exchange"):
-        return _exchange(name, decoder, encoding, rng, m, checkpoint)
+        return _exchange(name, decoder, encoding, rng, m, checkpoint, on_move)
     sequence = list(encoding.sequence)
     for positions in fragments:
         if checkpoint:
             checkpoint()
         segment = [sequence[i] for i in positions]
-        _reorder(name, segment, decoder.fixed_choices, rng)
+        _reorder(name, segment, rng, on_move)
         for i, rid in zip(positions, segment):
             sequence[i] = rid
     return Encoding(encoding.choices, sequence)

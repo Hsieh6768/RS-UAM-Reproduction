@@ -39,13 +39,13 @@ class OperatorControl:
                 return name
         return OPERATORS[-1]  # rounding at the upper endpoint
 
-    def update(self, operator, old_best, current, rng):
-        """Reward the final current versus the outer loop's saved v_old, then Eq. 24."""
+    def update(self, operator, old_best, best_after, rng):
+        """Reward a new historical best once per completed outer loop, then apply Eq. 24."""
         if operator not in self._scores:
             raise ValueError("Unknown operator")
         if not self.adaptive:
             return False
-        rewarded = current > old_best
+        rewarded = best_after > old_best
         if rewarded:
             self._scores[operator] += self.theta
         for name, score in self._scores.items():

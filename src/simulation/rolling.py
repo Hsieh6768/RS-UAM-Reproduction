@@ -3,7 +3,7 @@ from collections import Counter
 from dataclasses import replace
 from itertools import count
 from random import Random
-from time import perf_counter, process_time
+from time import perf_counter, perf_counter_ns, process_time
 
 from src.common.timebase import require_tick
 from src.m1.planner import M1Planner
@@ -152,7 +152,7 @@ def _solver_metrics(result, plan):
 
 def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, batch_seconds,
                 seed, m1_config, m3_config, m4_config, m5_config, reporter, failure_dir,
-                validator_enabled=None, planning_network=None, profile_run=None):
+                validator_enabled=None, planning_network=None, profile_run=None, diagnostic_run=None):
     """Run P1–P5 through demand closure. The experiment owner handles files/errors.
 
     Ticks are relative to warmup start. `coverage_end` is the exclusive end of
@@ -169,6 +169,8 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
         planning_network = network
     if planning_network.road.version != sim.router.version:
         raise ValueError("M1 planning road differs from simulator road")
+    if profile_run is not None and diagnostic_run is not None:
+        raise ValueError("Request diagnostics cannot run with legacy profiling")
     if validator_enabled is not None:
         m4_config = replace(m4_config, validate_final=validator_enabled)
     planner, searcher = M1Planner(m1_config), M3Searcher(network.road, m3_config)
@@ -184,6 +186,12 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
         new_count = source.advance(sim, tick)
         before = sim.batch_snapshot()
         types = before.request_types(tick - batch_seconds if batch > 1 else None)
+        trace = diagnostic_run.begin(batch, before, types, source.closed) if diagnostic_run is not None else None
+        if trace is not None:
+            diagnostic_start = perf_counter_ns()
+            cached = trace.targets.intersection(plans)
+            previous, rng_state = sim.search_state, rng.getstate()
+            diagnostic_setup_ns = perf_counter_ns() - diagnostic_start
         waiting = {rid for rid, kind in types.items() if kind != 3 and not source.closed}
         # An explicit per-active-request cache remains valid even when the
         # planner's bounded cache evicts an option from an unusually large batch.
@@ -197,13 +205,15 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
         last = max((int(before.requests[rid].final_deadline) for rid in waiting), default=tick)
         if flights.extend(sim, last):
             before = sim.batch_snapshot()
-        sparse = searcher.search(before, plans)
+        sparse = searcher.search(before, plans, diagnostic=trace)
+        basic = diagnostic_run.begin_basic(tick, plans, sparse) if diagnostic_run is not None else None
         profile = profile_run.begin(batch) if profile_run is not None else None
         if profile is not None:
             profile.measure("request_sampling", profile.select_requests, before, plans, sparse)
         m4_start_wall, m4_start_cpu = perf_counter(), process_time()
         result = halns.solve(before, plans, sparse, rng=rng, previous=sim.search_state, failure_dir=failure_dir,
-                             profile=profile)
+                             profile=profile, diagnostic=trace,
+                             observe_candidate=basic.decoded if basic is not None else None)
         m4_call_wall_ms = 1000 * (perf_counter() - m4_start_wall)
         m4_call_cpu_ms = 1000 * (process_time() - m4_start_cpu)
         if profile is None:
@@ -211,6 +221,12 @@ def run_rolling(sim, network, arrivals, *, eval_start, eval_end, coverage_end, b
         else:
             profile.measure("passenger_commit", commit_passengers, sim, before, plans, result)
         post = sim.batch_snapshot()
+        if basic is not None:
+            diagnostic_run.record_basic(basic)
+        if trace is not None:
+            diagnostic_run.write(trace, before, post, types, plans, cached, sparse, result, previous, rng_state,
+                                 planner.config, m3_config, planning_network.air,
+                                 source.closed, diagnostic_setup_ns)
         idle, _ = _fleet(post)
         unmet = () if source.closed else (rid for rid, req in post.requests.items() if req.status == "WAITING")
         plan = rebalancer.propose(post, unmet, idle, failure_dir=failure_dir)

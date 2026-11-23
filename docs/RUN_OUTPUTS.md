@@ -114,3 +114,9 @@ is_in_eval,final_counted_success,unserved_reason`。
 ## P6-NET 输入身份
 
 新运行的正式输入清单记录 `dataset_variant`（`full` 或 `scc100`）、`road_policy`、`snap_max_distance_m`、道路节点/边数、两级 manifest、图与三期样本的 SHA256。初始车位和内容派生的 `road_graph_version` 随本次运行保存。历史 E10 的归档格式仍以当次 manifest 为准。SCC100 数据验收输出另含与历史输入的来源对照、完整清洗账本、站点旧新映射、参考值差异和新版 E10 预检。
+
+## E11-60 请求级诊断
+
+开启 `request_diagnostics.enabled` 时，运行身份为 `REQUEST_DIAGNOSTICS`。独立目录内的 `selection.json` 保存各层样本明细，`basic_requests.json` 保存全体评价请求的阶段摘要。每个完整目标相关批次的 `batch-*.jsonl.gz` 首行保存一份冻结世界及 M4 提交后的变更，随后为实际候选的请求级证据。批号与 `batches.csv` 共用。
+
+`request_diagnostics/audit.json` 保存目标覆盖、文件指纹、预算状态和计时，运行清单保存诊断审计及选择文件指纹。仿真终态审计与诊断完整性分别记录。压缩限额导致的 `request_diagnostic_status=INCOMPLETE` 会使命令非零退出，已通过仿真终态审计的指标仍可读。字段和核验方法见 [E11-60 实施报告](P6_NET_E11_60_DIAGNOSTIC_IMPLEMENTATION.md)。

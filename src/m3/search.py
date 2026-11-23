@@ -5,7 +5,7 @@ from contextlib import closing
 from dataclasses import dataclass, field
 from fractions import Fraction
 from math import asin, cos, degrees, pi, radians, sin
-from time import perf_counter
+from time import perf_counter, perf_counter_ns
 from types import MappingProxyType
 from typing import Mapping, Optional
 
@@ -66,7 +66,7 @@ def _point_bounds(x, y):
     return x, y, x, y
 
 
-def _car_candidates(index, cars, pickup, radius, party_size, limit):
+def _car_candidates(index, cars, pickup, radius, party_size, limit, *, evidence=None):
     lon, lat = pickup
     lat_rad = radians(lat)
     cos_lat = cos(lat_rad)
@@ -95,6 +95,12 @@ def _car_candidates(index, cars, pickup, radius, party_size, limit):
             haversine = sin(dlat / 2) ** 2 + cos_lat * cos(radians(cy)) * sin(dlon / 2) ** 2
             ranks.append((haversine, car.vehicle_id, slot))
     ranks.sort()
+    if evidence is not None:
+        start = perf_counter_ns()
+        evidence["before_ids"] = tuple(vid for _, vid, _ in ranks)
+        if not ranks:
+            evidence["empty_reason"] = "no_vehicle_with_capacity_in_pickup_rectangle"
+        evidence["capture_ns"] = perf_counter_ns() - start
     return tuple(cars[slot] for _, _, slot in ranks[:limit]), len(ranks)
 
 
@@ -109,13 +115,27 @@ def _flight_index(snapshot):
     return {od: (tuple(f.depart_at for f in group), group) for od, group in groups.items()}
 
 
-def _flight_candidates(groups, leg, party_size):
+def _flight_candidates(groups, leg, party_size, *, evidence=None):
     times, flights = groups.get((leg.origin, leg.destination), ((), ()))
     first = bisect_left(times, leg.earliest_pickup)
     last = bisect_right(times, leg.latest_pickup)
-    return tuple(f.flight_id for f in flights[first:last]
+    rows = tuple(f.flight_id for f in flights[first:last]
                  if (leg.route_id is None or f.route_id == leg.route_id)
                  and f.arrive_at <= leg.latest_dropoff and f.remaining_seats >= party_size)
+    if evidence is not None:
+        start = perf_counter_ns()
+        evidence["before_ids"] = rows  # Algorithm 3 does not cap flight candidates.
+        if not rows:
+            route_matches = tuple(f for f in flights[first:last]
+                                  if leg.route_id is None or f.route_id == leg.route_id)
+            if not route_matches:
+                evidence["empty_reason"] = "no_scheduled_route_in_pickup_window"
+            elif not any(f.arrive_at <= leg.latest_dropoff for f in route_matches):
+                evidence["empty_reason"] = "no_flight_lands_by_dropoff_deadline"
+            else:
+                evidence["empty_reason"] = "insufficient_flight_seats"
+        evidence["capture_ns"] = perf_counter_ns() - start
+    return rows
 
 
 class M3Searcher:
@@ -126,7 +146,7 @@ class M3Searcher:
         self._config = config if config is not None else M3Config()
 
     def search(self, batch_snapshot: BatchSnapshot,
-               plans_by_request: Mapping[str, tuple[Plan, ...]]) -> SparseCandidates:
+               plans_by_request: Mapping[str, tuple[Plan, ...]], *, diagnostic=None) -> SparseCandidates:
         started = perf_counter()
         snapshot = batch_snapshot
         if snapshot.graph_version != self._road.version:
@@ -165,13 +185,17 @@ class M3Searcher:
                         if leg.latest_pickup is None or (leg.mode == LegMode.FLIGHT and
                                 (leg.earliest_pickup is None or leg.latest_dropoff is None)):
                             raise ValueError(f"Missing M1 time window for leg {key!r}")
+                        evidence = (diagnostic.m3_leg(key) if diagnostic is not None else None)
                         if leg.mode == LegMode.CAR:
                             selected, count = (), 0
                             if leg.latest_pickup >= snapshot.time:
                                 # Eq. (21) uses the original LP and never adjusts it using LD.
                                 radius = speed * float(Fraction(leg.latest_pickup) - snapshot.time)
                                 pickup = self._road.position(leg.origin)
-                                selected, count = _car_candidates(index, cars, pickup, radius, req.party_size, limit)
+                                selected, count = _car_candidates(index, cars, pickup, radius, req.party_size, limit,
+                                                                  evidence=evidence)
+                            elif evidence is not None:
+                                evidence.update(before_ids=(), empty_reason="leg_pickup_window_closed")
                             candidates[key] = tuple(car.vehicle_id for car in selected)
                             counts[key] = count
                             at_limit += count >= limit
@@ -179,10 +203,12 @@ class M3Searcher:
                             full += sum(car.occupancy == car.capacity for car in selected)
                             insufficient += sum(car.capacity - car.occupancy < req.party_size for car in selected)
                         else:
-                            rows = _flight_candidates(flights, leg, req.party_size)
+                            rows = _flight_candidates(flights, leg, req.party_size, evidence=evidence)
                             candidates[key] = rows
                             flight_queries += 1
                             flight_count += len(rows)
+                        if evidence is not None:
+                            diagnostic.m3_collection_ns += evidence.pop("capture_ns", 0)
 
         stats = M3Stats(index_build_s, len(counts), MappingProxyType(counts), at_limit, truncated,
                         full, insufficient, flight_queries, flight_count, perf_counter() - started)

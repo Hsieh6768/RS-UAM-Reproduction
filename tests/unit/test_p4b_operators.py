@@ -113,14 +113,13 @@ def test_position_move_exact_on_each_interleaved_fragment(name, endpoints, first
     assert moved.choices == enc.choices and decoder.decode(moved).feasible
 
 
-def test_insert_never_selects_committed_task_as_direct_target():
+def test_insert_moves_committed_occurrence_without_changing_binding():
     _, decoder, enc = exchange_scene()
-    # First eligible item is A even when the first position belongs to H.
+    # The first H is eligible and becomes the final occurrence of H.
     enc = Encoding(enc.choices, "HABBAH")
     moved = apply("insert", decoder, enc, PositionDraws((0, 5)), (tuple(range(6)),))
-    assert moved.sequence == tuple("HBBAHA")
-    locked = decoder.safe_baseline.encoding
-    assert apply("insert", decoder, locked, Random(9), ((0, 1),)) == locked
+    assert moved.sequence == tuple("ABBAHH")
+    assert moved.choices == enc.choices
 
 
 def test_plan_exchange_inserts_and_deletes_the_selected_occurrences():
@@ -145,7 +144,7 @@ def test_plan_exchange_inserts_and_deletes_the_selected_occurrences():
 
 
 @pytest.mark.parametrize("name,endpoints", [
-    ("insert", (0, 0)),  # the first eligible request is A at index zero
+    ("insert", (0, 0)),  # selecting and reinserting at index zero
     ("swap", (2, 3)), ("reverse", (2, 3)),  # the two adjacent Bs
     ("cut", (2, 2)), ("swap", (2, 2)), ("reverse", (2, 2)),
     ("cut", (0, 5)),  # moving the whole segment to the end preserves its order

@@ -8,9 +8,11 @@ from pathlib import Path
 from types import MappingProxyType
 
 from src.common.config import load_config
-from src.data.experiment import inspect_sample_counts, official_inputs, place_fleet, sample_envelopes
+from src.data.experiment import inspect_sample_counts, official_inputs, place_fleet, sample_envelopes, sample_releases
 from src.data.micro import COVERAGE_SECONDS, DEMAND, micro_envelopes, micro_network
+from src.evaluation.diagnostic_coverage import build_coverage
 from src.evaluation.profiling import ProfileConfig
+from src.evaluation.request_diagnostics import DiagnosticConfig, DiagnosticRun, input_identity, select_requests
 from src.m1.config import M1Config
 from src.m3.config import M3Config
 from src.m4.halns import M4Config
@@ -97,6 +99,11 @@ def resolve(args):
 def simulate(args):
     config = resolve(args)
     profile_config = ProfileConfig.from_config(config)
+    diagnostic_config = DiagnosticConfig.from_config(config)
+    if diagnostic_config.enabled and profile_config.enabled:
+        raise ValueError("Request diagnostics cannot run with legacy profiling")
+    if diagnostic_config.enabled:
+        config["request_diagnostics"] = asdict(diagnostic_config)
     if profile_config.enabled:
         config["profiling"] = asdict(profile_config)
     experiment, settings = config["experiment"], config["simulation"]
@@ -127,13 +134,15 @@ def simulate(args):
         meta["dataset_variant"] = config["inputs"].get("dataset_variant", "full")
     if profile_config.enabled:
         meta["run_class"] = "PROFILING"
+    if diagnostic_config.enabled:
+        meta.update(run_class="REQUEST_DIAGNOSTICS", diagnostic_affects_wall_search=True)
     sim = None
     phase = "initialization"
     try:
         if not args.dry_run:
             from src.evaluation.outputs import RunOutput
             report = RunOutput(config["reporting"]["output_root"], config, meta)
-            label = "PROFILING " if profile_config.enabled else ""
+            label = meta["run_class"] + " " if "run_class" in meta else ""
             print(f"{label}Run directory: {report.path.resolve()}", flush=True)
         if tiny:
             coverage_end = COVERAGE_SECONDS
@@ -150,10 +159,23 @@ def simulate(args):
                 meta["method_deviations"].append("D016")
         if eval_end > coverage_end:
             raise ValueError("Evaluation exceeds available demand coverage")
+        if diagnostic_config.enabled:
+            if not tiny:
+                meta["expected_evaluation_requests"] = inspect_sample_counts(paths, meta["input_counts"], start, end)
+            releases = (((at, rid) for at, rid, *_ in DEMAND) if tiny else
+                        ((at, row["request_id"]) for at, row in sample_releases(paths, origin)))
+            population = select_requests(releases, eval_start, eval_end)
+            if len(population) != meta["expected_evaluation_requests"]:
+                raise ValueError("Diagnostic population differs from the evaluation denominator")
+            selection = build_coverage(population, eval_start, eval_end, diagnostic_config, interval,
+                                       config["requests"]["pickup_tolerance_seconds"],
+                                       minute_offset=origin.second)
+            meta["diagnostic_selection"] = {"window_local": [start.isoformat(), end.isoformat()],
+                                           **selection.metadata()}
         if args.dry_run:
             print(json.dumps({**meta, "status": "DRY_RUN", "config": config}, indent=2))
             return 0
-        if not tiny:
+        if not tiny and "expected_evaluation_requests" not in meta:
             meta["expected_evaluation_requests"] = inspect_sample_counts(paths, meta["input_counts"], start, end)
         report.update_manifest(meta)
         network = micro_network() if tiny else PreparedNetwork.from_config(config)
@@ -165,6 +187,12 @@ def simulate(args):
         place_fleet(sim, experiment["fleet_size"], seed, config["network"]["car_capacity"])
         report.update_manifest(dict(road_graph_version=network.road.version,
                                initial_fleet_nodes={k: v.node for k, v in sim.snapshot().vehicles.items()}))
+        if diagnostic_config.enabled:
+            report.diagnostic_run = DiagnosticRun(report.path, diagnostic_config, selection.selected,
+                                                  input_identity(report.manifest), interval, coverage=selection)
+            print(f"Request diagnostics: {len(selection.population)} basic, {len(selection.selected)} full trace, "
+                  f"estimated {selection.forecast['estimated_compressed_bytes']:,} compressed bytes, "
+                  f"limit {diagnostic_config.max_compressed_bytes:,} bytes", flush=True)
         planning = network
         if experiment["variant"] == "rs":
             empty = MappingProxyType({})
@@ -174,10 +202,10 @@ def simulate(args):
         final = run_rolling(sim, network, arrivals, eval_start=eval_start, eval_end=eval_end,
                             coverage_end=coverage_end, seed=seed, batch_seconds=interval, reporter=report,
                             planning_network=planning, failure_dir=report.path / "errors",
-                            profile_run=report.profile_run, **modules)
+                            profile_run=report.profile_run, diagnostic_run=report.diagnostic_run, **modules)
         phase = "final_audit"
         report.complete(final)
-        return 0
+        return int(report.diagnostic_run is not None and report.diagnostic_run.audit["status"] != "PASS")
     except (Exception, KeyboardInterrupt) as exc:
         if report is None:
             raise

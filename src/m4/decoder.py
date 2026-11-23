@@ -166,12 +166,14 @@ class FullDecoder:
         if preserve_appointments and encoding != self.safe_baseline.encoding:
             raise EncodingError("Original appointment replay requires the safe baseline encoding")
 
-    def decode(self, encoding: Encoding, *, preserve_appointments=False, checkpoint=None, detail=None) -> DecodedSchedule:
+    def decode(self, encoding: Encoding, *, preserve_appointments=False, checkpoint=None, detail=None,
+               on_repair=None) -> DecodedSchedule:
         """Evaluate a trial, or replay this batch's safe encoding at its original appointments."""
         self._check_input(encoding, preserve_appointments)
-        return self._decode(encoding, preserve_appointments, checkpoint or _unchecked, detail=detail)
+        return self._decode(encoding, preserve_appointments, checkpoint or _unchecked,
+                            detail=detail, on_repair=on_repair)
 
-    def _decode(self, encoding, preserve_appointments, checkpoint=_unchecked, detail=None):
+    def _decode(self, encoding, preserve_appointments, checkpoint=_unchecked, detail=None, on_repair=None):
         wall, cpu = perf_counter(), process_time()
         repairs = []
         while True:
@@ -192,6 +194,8 @@ class FullDecoder:
                 repairs.append(failure)
                 remove = encoding.without if detail is None else detail.detail("repair_remove", encoding.without)
                 encoding = remove(failure.request_id)
+                if on_repair is not None:
+                    on_repair(failure)
         tasks, cars, nodes, flights, trips, ends, f1, f2, score = result
         checkpoint()
         return DecodedSchedule(self.batch_key, self.snapshot.time, self.snapshot.version, preserve_appointments, encoding,
